@@ -37,6 +37,7 @@ def new_logic():
         "graph_water": dg.new_graph(eventos_estimados),
     }
 
+
     return catalog
 
 
