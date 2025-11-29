@@ -1,7 +1,7 @@
 import time
 import math
-import datetime
 import csv
+from datetime import datetime
 from DataStructures.List import array_list as al
 from DataStructures.Map import map_linear_probing as mp
 from DataStructures.Graph import digraph as dg
@@ -60,7 +60,7 @@ def load_data(catalog, filename):
             event_id = row["event-id"]
             lat = float(row["location-lat"])
             lon = float(row["location-long"])
-            timestamp = datetime.strptime(row["timestamp"], "%Y-%m-%d %H:%M:%S.%f")
+            timestamp = datetime.strftime(row["timestamp"], "%Y-%m-%d %H:%M:%S.%f")
 
             try:
                 dist_agua_m = float(row["comments"])

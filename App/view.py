@@ -1,12 +1,13 @@
 import sys
-
+from App import logic as l
 
 def new_logic():
     """
         Se crea una instancia del controlador
     """
+
     #TODO: Llamar la función de la lógica donde se crean las estructuras de datos
-    pass
+    return l.new_logic()
 
 def print_menu():
     print("Bienvenido")
@@ -23,7 +24,7 @@ def load_data(control):
     """
     Carga los datos
     """
-    #TODO: Realizar la carga de datos
+    return l.load_data(control,"1000_cranes_mongolia_large.csv")
     pass
 
 
