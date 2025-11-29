@@ -316,9 +316,8 @@ def load_data(catalog, filename):
         primeros_5,
         ultimos_5
     )
+
 # Funciones de consulta sobre el catálogo
-
-
 def req_1(catalog):
     """
     Retorna el resultado del requerimiento 1
