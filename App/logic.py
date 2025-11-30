@@ -60,7 +60,7 @@ def load_data(catalog, filename):
             event_id = row["event-id"]
             lat = float(row["location-lat"])
             lon = float(row["location-long"])
-            timestamp = datetime.strftime(row["timestamp"], "%Y-%m-%d %H:%M:%S.%f")
+            timestamp = datetime.strptime(row["timestamp"], "%Y-%m-%d %H:%M:%S.%f")
 
             try:
                 dist_agua_m = float(row["comments"])
