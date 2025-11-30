@@ -1,4 +1,6 @@
 import sys
+from DataStructures.List import array_list as al
+from tabulate import tabulate
 from App import logic as l
 
 def new_logic():
@@ -22,10 +24,52 @@ def print_menu():
 
 def load_data(control):
     """
-    Carga los datos
+    Carga los dato
     """
-    return l.load_data(control,"1000_cranes_mongolia_large.csv")
-    pass
+    catalog,tiempo_ms,total_grullas,total_eventos,total_nodos,total_arcos_distance,total_arcos_water,primeros_5,ultimos_5 = l.load_data(control,"1000_cranes_mongolia_small.csv")
+
+    headers = ["Identificador Único","Posición","Fecha de creación","Grullas (tags)","Conteo","Prom. dist. agua"]
+
+    tabla_primeros = []
+    tabla_ultimos = []
+
+    for i in primeros_5["elements"]:
+        tabla_primeros.append([i['id'],
+                              (i['lat'], i['lon']),
+                              i['creation_timestamp'],
+                              i['tags']["elements"],
+                              i["events_count"],
+                              i['prom_distancia_agua']])
+    
+    for i in ultimos_5["elements"]:
+        tabla_ultimos.append([i['id'],
+                              (i['lat'], i['lon']),
+                              i['creation_timestamp'],
+                              i['tags']["elements"],
+                              i["events_count"],
+                              i['prom_distancia_agua']])
+
+    print("==========================================================")
+    print("                      Carga de datos                      ")
+    print("==========================================================")
+
+    print("==--- Información cargada ---==")
+    print("Número de grullas reconocidas: ", total_grullas)
+    print("Número de eventos cargados: ", total_eventos)
+    print("Número de nodos cargados en el grafo: ", total_nodos)
+    print("Número de arcos de distancia cargados (total arcos): ", total_arcos_distance)
+    print("Número de arcos de agua cargados (total arcos): ", total_arcos_water)
+    print("Tiempo [ms]: ", tiempo_ms)
+
+    print("========================================================== \n")
+    print("==--- Primeros 5 elementos del catálogo ---==")
+    print(tabulate(tabla_primeros, headers=headers, tablefmt="fancy_grid", stralign="center"))
+    print("========================================================== \n")
+    print("==--- Últimos 5 elementos del catálogo ---==")
+    print(tabulate(tabla_ultimos, headers=headers, tablefmt="fancy_grid", stralign="center"), "\n")
+
+    return catalog
+    
 
 
 def print_data(control, id):
