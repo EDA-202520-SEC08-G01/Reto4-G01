@@ -1,6 +1,7 @@
 from DataStructures.Map import map_entry as me
 from DataStructures.Map import map_functions as mf
 from DataStructures.List import array_list as al
+from DataStructures.List import stack as st
 import random
 
 
@@ -123,6 +124,13 @@ def get(my_map, key):
         return me.get_value(entry)
     return None
 
+def get_element(my_map, key):
+    h = mf.hash_value(my_map, key)
+    occupied, index = find_slot(my_map, key, h)
+    if occupied:
+        entry = al.get_element(my_map["table"], index)
+        return entry
+    return None
 
 def contains(my_map, key):
     h = mf.hash_value(my_map, key)

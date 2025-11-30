@@ -28,7 +28,7 @@ def load_data(control):
     """
     catalog,tiempo_ms,total_grullas,total_eventos,total_nodos,total_arcos_distance,total_arcos_water,primeros_5,ultimos_5 = l.load_data(control,"1000_cranes_mongolia_small.csv")
 
-    headers = ["Identificador Único","Posición","Fecha de creación","Grullas (tags)","Conteo","Prom. dist. agua"]
+    headers = ["Identificador Único","Posición","Fecha de creación","Grullas (tags)","Conteo","Prom. dist. agua (km)"]
 
     tabla_primeros = []
     tabla_ultimos = []
@@ -66,7 +66,8 @@ def load_data(control):
     print(tabulate(tabla_primeros, headers=headers, tablefmt="fancy_grid", stralign="center"))
     print("========================================================== \n")
     print("==--- Últimos 5 elementos del catálogo ---==")
-    print(tabulate(tabla_ultimos, headers=headers, tablefmt="fancy_grid", stralign="center"), "\n")
+    print(tabulate(tabla_ultimos, headers=headers, tablefmt="fancy_grid", stralign="center"))
+    print("========================================================== \n")
 
     return catalog
     
@@ -84,7 +85,51 @@ def print_req_1(control):
         Función que imprime la solución del Requerimiento 1 en consola
     """
     # TODO: Imprimir el resultado del requerimiento 1
-    pass
+    
+    migr_origin = str(input("Ingrese el identificador único del origen de la migracion: "))
+    migr_dest = str(input("Ingrese el identificador único del destino de la migracion: "))
+
+    path_al, distancia_nodos, tamano, primeros_5, ultimos_5, tiempo_ms = l.req_1(control, migr_origin, migr_dest)
+
+    headers = ["Identificador Único","Posición","Fecha de creación","Grullas (tags)","Conteo","Prom. dist. agua (km)"]
+
+    tabla_primeros = []
+    tabla_ultimos = []
+
+    for i in primeros_5["elements"]:
+        tabla_primeros.append([i['id'],
+                              (i['lat'], i['lon']),
+                              i['creation_timestamp'],
+                              i['tags']["elements"],
+                              i["events_count"],
+                              i['prom_distancia_agua']])
+    
+    for i in ultimos_5["elements"]:
+        tabla_ultimos.append([i['id'],
+                              (i['lat'], i['lon']),
+                              i['creation_timestamp'],
+                              i['tags']["elements"],
+                              i["events_count"],
+                              i['prom_distancia_agua']])
+
+    print("==========================================================")
+    print("                      Requerimiento 1                     ")
+    print("==========================================================")
+
+    print("==--- Información cargada ---==")
+    print("Ruta Tomada (mejor ruta): ", path_al['elements'])
+    print("Distancia entre nodos: ", distancia_nodos)
+    print("Numero de puntos en la ruta: ", tamano)
+    print("Tiempo [ms]: ", tiempo_ms)
+
+    print("========================================================== \n")
+    print("==--- Primeros 5 elementos del catálogo ---==")
+    print(tabulate(tabla_primeros, headers=headers, tablefmt="fancy_grid", stralign="center"))
+    print("========================================================== \n")
+    print("==--- Últimos 5 elementos del catálogo ---==")
+    print(tabulate(tabla_ultimos, headers=headers, tablefmt="fancy_grid", stralign="center"))
+    print("========================================================== \n")
+    print()
 
 
 def print_req_2(control):

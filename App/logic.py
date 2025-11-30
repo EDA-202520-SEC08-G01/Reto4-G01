@@ -5,6 +5,8 @@ from datetime import datetime
 from DataStructures.List import array_list as al
 from DataStructures.Map import map_linear_probing as mp
 from DataStructures.Graph import digraph as dg
+from DataStructures.Graph import dijsktra as djk
+from DataStructures.List import single_linked_list as lt
 
 def haversine_km(lat1, lon1, lat2, lon2):
     """
@@ -319,13 +321,40 @@ def load_data(catalog, filename):
     )
 
 # Funciones de consulta sobre el catálogo
-def req_1(catalog):
+def req_1(catalog, migr_origin, migr_dest):
     """
     Retorna el resultado del requerimiento 1
     """
     # TODO: Modificar el requerimiento 1
-    pass
 
+    start = get_time()
+    graph = catalog["connections"]
+    structure = djk.dijsktra(graph, migr_origin)
+    path = djk.path_to(migr_dest, structure)
+
+    path_al = al.new_list()
+    for i in range(lt.size(path)):
+        al.add_last(path_al, lt.get_element(path, i))
+
+    primeros_5 = al.new_list()
+    ultimos_5 = al.new_list()
+    total_nodos = lt.size(path)
+
+    if total_nodos > 0:
+
+        limite = min(5, total_nodos)
+        for i in range(limite):
+            al.add_last(primeros_5, al.get_element(path, i))
+
+        limite2 = min(5, total_nodos)
+        inicio_ultimos = total_nodos - limite2
+        for i in range(inicio_ultimos, total_nodos):
+            al.add_last(ultimos_5, al.get_element(path, i))
+
+    end = get_time()
+    tiempo_ms = delta_time(start, end)
+
+    return path_al, structure["dist_to"], lt.size(path), primeros_5, ultimos_5, tiempo_ms
 
 def req_2(catalog):
     """
