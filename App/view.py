@@ -24,9 +24,11 @@ def print_menu():
 
 def load_data(control):
     """
-    Carga los dato
+    Carga los datos
     """
-    catalog,tiempo_ms,total_grullas,total_eventos,total_nodos,total_arcos_distance,total_arcos_water,primeros_5,ultimos_5 = l.load_data(control,"1000_cranes_mongolia_small.csv")
+
+    nombre_archivo = str(input("Ingrese el nombre del archivo de datos (Ejemplo: '1000_cranes_mongolia_small.csv'): \n"))
+    catalog,tiempo_ms,total_grullas,total_eventos,total_nodos,total_arcos_distance,total_arcos_water,primeros_5,ultimos_5 = l.load_data(control,nombre_archivo)
 
     headers = ["Identificador Único","Posición","Fecha de creación","Grullas (tags)","Conteo","Prom. dist. agua (km)"]
 
