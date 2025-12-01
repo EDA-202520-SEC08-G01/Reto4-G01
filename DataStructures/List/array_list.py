@@ -8,7 +8,6 @@ def new_list():
     return new_list
 
 def get_element(my_list, index):
-    
     return my_list["elements"][index]
 
 def is_present(my_list, element, cmp_function):

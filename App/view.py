@@ -99,7 +99,7 @@ def print_req_1(control):
     tabla_ultimos = []
 
     for i in primeros_5["elements"]:
-        tabla_primeros.append([i['id'],
+        tabla_primeros.append([i,
                               (i['lat'], i['lon']),
                               i['creation_timestamp'],
                               i['tags']["elements"],

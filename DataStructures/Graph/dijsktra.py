@@ -3,7 +3,6 @@ from DataStructures.Map import map_linear_probing as mlp
 from DataStructures.Priority_queue import priority_queue as pq
 from DataStructures.Graph import digraph as dg
 from DataStructures.List import stack as st
-from DataStructures.Graph import vertex as edg
 import math
 
 def dijsktra(my_graph, source):
@@ -45,7 +44,7 @@ def dijsktra(my_graph, source):
 
         for w in neighbors["elements"]:
 
-            edge = edg.get_edge(my_graph, v, w)
+            edge = dg.get_edge(my_graph, v, w)
             weight = edge["weight"]
 
             w_info = mlp.get(visited, w)
