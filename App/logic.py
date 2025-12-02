@@ -50,9 +50,6 @@ def load_data(catalog, filename):
     events = catalog["events"]
     tags_map = catalog["tags"]
 
-    # ==========================================================
-    # 1. LEER EVENTOS DEL CSV (sin try/except)
-    # ==========================================================
     ruta = "Data/" + filename
     with open(ruta, encoding="utf-8") as f:
         reader = csv.DictReader(f)
