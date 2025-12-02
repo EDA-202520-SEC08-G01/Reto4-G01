@@ -332,14 +332,30 @@ def req_1(catalog, migr_origin, migr_dest):
     # TODO: Modificar el requerimiento 1
 
     start = get_time()
-    graph = catalog["connections"]
+    graph = catalog["graph_distance"]
     structure = djk.dijsktra(graph, migr_origin)
+
+    if not djk.has_path_to(migr_dest, structure):
+        end = get_time()
+        tiempo_ms = delta_time(start, end)
+        return (
+            al.new_list(),   
+            math.inf,        
+            0,              
+            al.new_list(),   
+            al.new_list(),   
+            tiempo_ms
+        )
+    
     path = djk.path_to(migr_dest, structure)
+    total_dist = djk.dist_to(migr_dest, structure["visited"])
 
     path_al = al.new_list()
     for i in range(lt.size(path)):
         al.add_last(path_al, lt.get_element(path, i))
 
+    i_primeros_5 = al.new_list()
+    i_ultimos_5 = al.new_list()
     primeros_5 = al.new_list()
     ultimos_5 = al.new_list()
     total_nodos = lt.size(path)
@@ -348,17 +364,23 @@ def req_1(catalog, migr_origin, migr_dest):
 
         limite = min(5, total_nodos)
         for i in range(limite):
-            al.add_last(primeros_5, al.get_element(path, i))
+            al.add_last(i_primeros_5, lt.get_element(path, i)["info"])
 
         limite2 = min(5, total_nodos)
         inicio_ultimos = total_nodos - limite2
         for i in range(inicio_ultimos, total_nodos):
-            al.add_last(ultimos_5, al.get_element(path, i))
+            al.add_last(i_ultimos_5, lt.get_element(path, i)["info"])
+        
+        for i in i_primeros_5["elements"]:
+            al.add_last(primeros_5, mp.get(catalog["nodes_by_id"], i))
+
+        for i in i_ultimos_5["elements"]:
+            al.add_last(ultimos_5, mp.get(catalog["nodes_by_id"], i))
 
     end = get_time()
     tiempo_ms = delta_time(start, end)
 
-    return path_al, structure["dist_to"], lt.size(path), primeros_5, ultimos_5, tiempo_ms
+    return path_al, total_dist, lt.size(path), primeros_5, ultimos_5, tiempo_ms
 
 def req_2(catalog):
     """

@@ -103,17 +103,16 @@ def insert_element(list, element, pos):
         
 def is_present(list, element, cmp_function):
     node = ns.new_single_node(element)
-    if is_empty(list):
-         raise Exception("Error: Indexación fuera de rango -> No existe ningun elemento, el arreglo esta vacio.")
-    nodo_buscar = list["first"]
-    existe = False
-    while nodo_buscar["next"] != None:
-        if cmp_function(node["info"], nodo_buscar["info"]) == 0:
-            existe = True
-        nodo_buscar = nodo_buscar["next"]
-        index += 1
-    if existe:
-        return index
+    if not is_empty(list):
+        nodo_buscar = list["first"]
+        existe = False
+        while nodo_buscar["next"] != None:
+            if cmp_function(node["info"], nodo_buscar["info"]) == 0:
+                existe = True
+            nodo_buscar = nodo_buscar["next"]
+            index += 1
+        if existe:
+            return index
     else:
         return -1
     
@@ -316,3 +315,11 @@ def quick_sort(list, sort_crit):
 
     # Se concatenan las 3 particiones y se retorna la lista ordenada: antes -> iguales -> después
     return concatenar(concatenar(antes_pivote_sort, iguales), dsps_pivote_sort)
+
+def default_function(element_1, element_2):
+    if element_1 > element_2:
+        return 1
+    elif element_1 < element_2:
+        return -1
+    else:
+        return 0

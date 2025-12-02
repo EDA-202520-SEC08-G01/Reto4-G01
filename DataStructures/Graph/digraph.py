@@ -87,3 +87,9 @@ def get_vertex_info(my_graph, key_u):
         raise KeyError(f"Vertice con llave {key_u} no existe.")
     return vt.get_value(vertex_u)
 
+def get_edge(my_graph, key_u, key_v):
+    vertex_u = mlp.get(my_graph["vertices"], key_u)
+    if vertex_u is None:
+        raise KeyError(f"Vertice con llave {key_u} no existe.")
+    return vt.get_edge(vertex_u, key_v)
+
