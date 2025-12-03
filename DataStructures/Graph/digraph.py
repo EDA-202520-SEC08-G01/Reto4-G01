@@ -64,7 +64,7 @@ def adjacents(my_graph, key_u):
     return mlp.key_set(mapa_arcos)
 
 def get_vertex(my_graph, key_u):
-    return mlp.get_element(my_graph["vertices"], key_u)
+    return mlp.get(my_graph["vertices"], key_u)
 
 def edges_vertex(my_graph, vertex):
     key_u = vt.get_key(vertex)
