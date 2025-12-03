@@ -45,7 +45,97 @@ def find_closest_node(catalog, lat, lon):
             min_distance = distance
             closest_node_id = node["id"]
     
-    return closest_node_id
+    return closest_node_id, min_distance
+
+def get_first_last_nodes(catalog, path_list, graph):
+    """
+    Extrae los primeros 5 y últimos 5 nodos de un camino con información detallada.
+    """
+    first_5 = al.new_list()
+    last_5 = al.new_list()
+    total_nodes = al.size(path_list)
+    
+    if total_nodes > 0:
+        # Primeros 5
+        limit_first = min(5, total_nodes)
+        for i in range(limit_first):
+            node_id = al.get_element(path_list, i)
+            node = mp.get(catalog["nodes_by_id"], node_id)
+            
+            # Calcular distancia al siguiente nodo
+            distance_to_next = "Desconocido"
+            if i < total_nodes - 1:
+                next_node_id = al.get_element(path_list, i + 1)
+                edge_weight = dg.get_edge(graph, node_id, next_node_id)
+                if edge_weight is not None:
+                    distance_to_next = round(edge_weight, 3)
+            
+            # Obtener primeros y últimos 3 tags
+            tags = node["tags"]
+            num_tags = al.size(tags)
+            first_3_tags = []
+            last_3_tags = []
+            
+            for j in range(min(3, num_tags)):
+                first_3_tags.append(al.get_element(tags, j))
+            
+            if num_tags > 3:
+                start_last = max(0, num_tags - 3)
+                for j in range(start_last, num_tags):
+                    last_3_tags.append(al.get_element(tags, j))
+            
+            node_info = {
+                "id": node_id,
+                "lat": node["lat"],
+                "lon": node["lon"],
+                "num_individuals": al.size(tags),
+                "first_3_tags": first_3_tags if first_3_tags else ["Desconocido"],
+                "last_3_tags": last_3_tags if last_3_tags else ["Desconocido"],
+                "distance_to_next": distance_to_next
+            }
+            
+            al.add_last(first_5, node_info)
+        
+        # Últimos 5
+        limit_last = min(5, total_nodes)
+        start_last = total_nodes - limit_last
+        for i in range(start_last, total_nodes):
+            node_id = al.get_element(path_list, i)
+            node = mp.get(catalog["nodes_by_id"], node_id)
+
+            distance_to_next = "Desconocido"
+            if i < total_nodes - 1:
+                next_node_id = al.get_element(path_list, i + 1)
+                edge_weight = dg.get_edge(graph, node_id, next_node_id)
+                if edge_weight is not None:
+                    distance_to_next = round(edge_weight, 3)
+
+            tags = node["tags"]
+            num_tags = al.size(tags)
+            first_3_tags = []
+            last_3_tags = []
+            
+            for j in range(min(3, num_tags)):
+                first_3_tags.append(al.get_element(tags, j))
+            
+            if num_tags > 3:
+                start_last = max(0, num_tags - 3)
+                for j in range(start_last, num_tags):
+                    last_3_tags.append(al.get_element(tags, j))
+            
+            node_info = {
+                "id": node_id,
+                "lat": node["lat"],
+                "lon": node["lon"],
+                "num_individuals": al.size(tags),
+                "first_3_tags": first_3_tags if first_3_tags else ["Desconocido"],
+                "last_3_tags": last_3_tags if last_3_tags else ["Desconocido"],
+                "distance_to_next": distance_to_next
+            }
+            
+            al.add_last(last_5, node_info)
+    
+    return first_5, last_5
 
 def cmp_events_by_timestamp(e1, e2):
     return e1["timestamp"] < e2["timestamp"]
@@ -385,11 +475,106 @@ def req_1(catalog, migr_origin, migr_dest):
 
     return path_al, total_dist, lt.size(path), primeros_5, ultimos_5, tiempo_ms
 
-def req_2(catalog):
+def req_2(catalog, origin_lat, origin_lon, dest_lat, dest_lon, radius_km):
     """
     Retorna el resultado del requerimiento 2
     """
     # TODO: Modificar el requerimiento 2
+    start = get_time()
+    
+    # Encontrar nodos más cercanos a las coordenadas
+    origin_node_id, origin_dist = find_closest_node(catalog, origin_lat, origin_lon)
+    dest_node_id, dest_dist = find_closest_node(catalog, dest_lat, dest_lon)
+    
+    if origin_node_id is None or dest_node_id is None:
+        end = get_time()
+        return {
+            "path": None,
+            "total_distance": 0,
+            "total_nodes": 0,
+            "last_node_in_area": None,
+            "first_5": al.new_list(),
+            "last_5": al.new_list(),
+            "time_ms": delta_time(start, end),
+            "message": "No se encontraron nodos cercanos a las coordenadas"
+        }
+    
+    # Ejecutar BFS desde el origen
+    graph = catalog["graph_distance"]
+    search_result = bfs.bfs(graph, origin_node_id)
+    
+    # Verificar si hay camino al destino
+    if not bfs.has_path_to(dest_node_id, search_result):
+        end = get_time()
+        return {
+            "path": None,
+            "total_distance": 0,
+            "total_nodes": 0,
+            "last_node_in_area": None,
+            "first_5": al.new_list(),
+            "last_5": al.new_list(),
+            "time_ms": delta_time(start, end),
+            "message": "No existe camino entre los puntos"
+        }
+    
+    # Obtener el camino
+    path_stack = bfs.path_to(dest_node_id, search_result)
+    
+    # Convertir stack a lista
+    path_list = al.new_list()
+    while not st.is_empty(path_stack):
+        node_id = st.pop(path_stack)
+        al.add_last(path_list, node_id)
+    
+    # Obtener nodo de origen para calcular distancias
+    origin_node = mp.get(catalog["nodes_by_id"], origin_node_id)
+    origin_lat_node = origin_node["lat"]
+    origin_lon_node = origin_node["lon"]
+    
+    # Encontrar el último nodo dentro del área de interés
+    last_node_in_area = None
+    for i in range(al.size(path_list)):
+        node_id = al.get_element(path_list, i)
+        node = mp.get(catalog["nodes_by_id"], node_id)
+        
+        distance_from_origin = haversine(
+            origin_lat_node, origin_lon_node,
+            node["lat"], node["lon"]
+        )
+        
+        if distance_from_origin <= radius_km:
+            last_node_in_area = node_id
+    
+    # Calcular distancia total del camino
+    total_distance = 0.0
+    prev_node_id = None
+    for i in range(al.size(path_list)):
+        node_id = al.get_element(path_list, i)
+        
+        if prev_node_id is not None:
+            edge_weight = dg.get_edge(graph, prev_node_id, node_id)
+            if edge_weight is not None:
+                total_distance += edge_weight
+        
+        prev_node_id = node_id
+    
+    # Obtener primeros y últimos 5 nodos con información detallada
+    first_5, last_5 = get_first_last_nodes(catalog, path_list, graph)
+    
+    end = get_time()
+    
+    return {
+        "origin_node": origin_node_id,
+        "dest_node": dest_node_id,
+        "radius_km": radius_km,
+        "last_node_in_area": last_node_in_area,
+        "path": path_list,
+        "total_distance": total_distance,
+        "total_nodes": al.size(path_list),
+        "first_5": first_5,
+        "last_5": last_5,
+        "time_ms": delta_time(start, end)
+    }
     pass
 
 
