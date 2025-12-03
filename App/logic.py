@@ -8,6 +8,7 @@ from DataStructures.Graph import digraph as dg
 from DataStructures.Graph import dijsktra as djk
 from DataStructures.List import single_linked_list as lt
 from DataStructures.Graph import dfo as dfo
+from DataStructures.Graph import bfs as bfs
 from DataStructures.Stack import stack as st
 
 def haversine(lat1, lon1, lat2, lon2):
@@ -528,11 +529,212 @@ def req_5(catalog):
     pass
 
 def req_6(catalog):
-    """
-    Retorna el resultado del requerimiento 6
-    """
-    # TODO: Modificar el requerimiento 6
-    pass
+    start = get_time()
+    graph = catalog["graph_water"]
+    nodes_map = catalog["nodes_by_id"]
+
+    # --- 1. Obtener todos los vértices del grafo hídrico ---
+    verts = dg.vertices(graph)   # array_list con IDs de nodos
+
+    num_vertices = al.size(verts)
+
+    # Mapa nodo -> subred_id (índice de subred)
+    node_to_subred = mp.new_map(num_vertices, 0.7)
+
+    # Mapa subred_id -> lista de nodos de esa subred
+    subred_to_nodes = mp.new_map(num_vertices, 0.7)
+
+    subred_id_counter = 0
+
+    # --- 2. Recorrer todos los nodos y lanzar BFS por cada componente ---
+    for i in range(num_vertices):
+        nid = al.get_element(verts, i)
+
+        # Si el nodo ya tiene subred asignada, lo saltamos
+        if mp.contains(node_to_subred, nid):
+            continue
+
+        # Nueva subred
+        subred_id_counter += 1
+
+        # BFS desde nid
+        visited_map = bfs.bfs(graph, nid)   # mapa node_id -> {edge_from, dist_to, marked}
+
+        # Lista de nodos para esta subred
+        nodes_list = al.new_list()
+        mp.put(subred_to_nodes, subred_id_counter, nodes_list)
+
+        # Para cada nodo alcanzado en este BFS, lo marcamos como parte de esta subred
+        keys_visited = mp.key_set(visited_map)   # array_list con los nodos visitados
+
+        kv_size = al.size(keys_visited)
+        for j in range(kv_size):
+            vid = al.get_element(keys_visited, j)
+
+            # Si por algún motivo ya tenía subred, no lo pisamos
+            if not mp.contains(node_to_subred, vid):
+                mp.put(node_to_subred, vid, subred_id_counter)
+                al.add_last(nodes_list, vid)
+
+    # Hasta aquí ya tenemos:
+    # - node_to_subred: nodo -> subred_id
+    # - subred_to_nodes: subred_id -> array_list con nodos de esa subred
+
+    total_subredes = subred_id_counter
+
+    # --- 3. Construir la info detallada de cada subred ---
+    subredes_info = al.new_list()
+
+    for sid in range(1, total_subredes + 1):
+
+        nodes_list = mp.get(subred_to_nodes, sid)
+        if nodes_list is None:
+            continue
+
+        cant_nodos = al.size(nodes_list)
+
+        # Si por alguna razón está vacía, la ignoramos
+        if cant_nodos == 0:
+            continue
+
+        # --- 3.1 Calcular bounding box lat/lon y recolectar grullas únicas ---
+        lat_min = None
+        lat_max = None
+        lon_min = None
+        lon_max = None
+
+        individuos_map = mp.new_map(1000, 0.7)  # set de IDs de grullas usando map
+
+        for i in range(cant_nodos):
+            nid = al.get_element(nodes_list, i)
+            node = mp.get(nodes_map, nid)
+
+            if node is None:
+                continue
+
+            lat = node.get("lat", "Unknown")
+            lon = node.get("lon", "Unknown")
+
+            if lat != "Unknown" and lon != "Unknown":
+                if lat_min is None or lat < lat_min:
+                    lat_min = lat
+                if lat_max is None or lat > lat_max:
+                    lat_max = lat
+                if lon_min is None or lon < lon_min:
+                    lon_min = lon
+                if lon_max is None or lon > lon_max:
+                    lon_max = lon
+
+            # tags: lista de grullas que pasan por este nodo
+            tags_list = node["tags"]
+            tags_count = al.size(tags_list)
+
+            for j in range(tags_count):
+                grulla_id = al.get_element(tags_list, j)
+                mp.put(individuos_map, grulla_id, True)
+
+        # Si bounding box nunca se actualizó:
+        if lat_min is None:
+            lat_min = "Unknown"
+            lat_max = "Unknown"
+            lon_min = "Unknown"
+            lon_max = "Unknown"
+
+        total_individuos = mp.size(individuos_map)
+
+        # --- 3.2 Obtener primeros 3 y últimos 3 nodos de la subred ---
+        primeros_3_nodos = al.new_list()
+        ultimos_3_nodos = al.new_list()
+
+        limit_n = 3
+        if cant_nodos < 3:
+            limit_n = cant_nodos
+
+        # Primeros 3 nodos
+        for i in range(limit_n):
+            nid = al.get_element(nodes_list, i)
+            node = mp.get(nodes_map, nid)
+            info_nodo = {
+                "id": nid,
+                "lat": node.get("lat", "Unknown"),
+                "lon": node.get("lon", "Unknown")
+            }
+            al.add_last(primeros_3_nodos, info_nodo)
+
+        # Últimos 3 nodos
+        start_idx = cant_nodos - limit_n
+        for i in range(start_idx, cant_nodos):
+            nid = al.get_element(nodes_list, i)
+            node = mp.get(nodes_map, nid)
+            info_nodo = {
+                "id": nid,
+                "lat": node.get("lat", "Unknown"),
+                "lon": node.get("lon", "Unknown")
+            }
+            al.add_last(ultimos_3_nodos, info_nodo)
+
+        # --- 3.3 Obtener primeros 3 y últimos 3 IDs de grullas de la subred ---
+        primeros_3_grullas = al.new_list()
+        ultimos_3_grullas = al.new_list()
+
+        ids_grullas_al = mp.key_set(individuos_map)
+        cant_grullas = al.size(ids_grullas_al)
+
+        limit_g = 3
+        if cant_grullas < 3:
+            limit_g = cant_grullas
+
+        # primeros 3
+        for i in range(limit_g):
+            gid = al.get_element(ids_grullas_al, i)
+            al.add_last(primeros_3_grullas, gid)
+
+        # últimos 3
+        start_g = cant_grullas - limit_g
+        for i in range(start_g, cant_grullas):
+            gid = al.get_element(ids_grullas_al, i)
+            al.add_last(ultimos_3_grullas, gid)
+
+        # --- 3.4 Construir descriptor de subred ---
+        subred_info = {
+            "subred_id": sid,
+            "num_puntos": cant_nodos,
+            "lat_min": lat_min,
+            "lat_max": lat_max,
+            "lon_min": lon_min,
+            "lon_max": lon_max,
+            "primeros_3_puntos": primeros_3_nodos,
+            "ultimos_3_puntos": ultimos_3_nodos,
+            "total_individuos": total_individuos,
+            "primeros_3_grullas": primeros_3_grullas,
+            "ultimos_3_grullas": ultimos_3_grullas
+        }
+
+        al.add_last(subredes_info, subred_info)
+
+
+    def cmp_subred_mas_grande(a, b):
+        return a["num_puntos"] > b["num_puntos"]
+
+    subredes_ordenadas = al.merge_sort(subredes_info, cmp_subred_mas_grande)
+
+    total_subredes = al.size(subredes_ordenadas)
+
+    # 5 subredes más grandes
+    limit_comp = 5
+    if total_subredes < 5:
+        limit_comp = total_subredes
+
+    top_subredes = al.sub_list(subredes_ordenadas, 0, limit_comp)
+
+    end = get_time()
+    tiempo_ms = delta_time(start, end)
+
+    return {
+        "num_subredes": total_subredes,
+        "subredes_top": top_subredes,
+        "tiempo_ms": tiempo_ms
+    }
 
 
 # Funciones para medir tiempos de ejecucion
