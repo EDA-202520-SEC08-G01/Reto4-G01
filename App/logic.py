@@ -7,8 +7,10 @@ from DataStructures.Map import map_linear_probing as mp
 from DataStructures.Graph import digraph as dg
 from DataStructures.Graph import dijsktra as djk
 from DataStructures.List import single_linked_list as lt
+from DataStructures.Graph import dfo as dfo
+from DataStructures.Stack import stack as st
 
-def haversine_km(lat1, lon1, lat2, lon2):
+def haversine(lat1, lon1, lat2, lon2):
     """
     Distancia Haversine en kilómetros entre dos puntos (lat, lon) en grados.
     """
@@ -124,7 +126,7 @@ def load_data(catalog, filename):
                 (ev_time - node["creation_timestamp"]).total_seconds()
             ) / 3600.0
             
-            d_km = haversine_km(
+            d_km = haversine(
                 node["lat"],
                 node["lon"],
                 ev_lat,
@@ -213,7 +215,7 @@ def load_data(catalog, filename):
 
         # Solo crear arco si son nodos DIFERENTES
         if node_id != prev_node_id:
-            d_km = haversine_km(
+            d_km = haversine(
                 node_prev["lat"], node_prev["lon"],
                 node_curr["lat"], node_curr["lon"]
             )
@@ -371,11 +373,144 @@ def req_2(catalog):
 
 def req_3(catalog):
     """
-    Retorna el resultado del requerimiento 3
+    REQ 3: Identificar posibles rutas migratorias dentro del nicho biológico
+    Usando Orden Topológico (DFO) sobre el grafo de todos los puntos migratorios.
     """
-    # TODO: Modificar el requerimiento 3
-    pass
 
+    start = get_time()
+    graph = catalog["graph_distance"]     # grafo del nicho biológico
+    nodes_map = catalog["nodes_by_id"]    # id_nodo -> info_nodo
+    structure = dfo.dfo(graph)
+    reversepost = structure["reversepost"]    # stack
+
+    if st.size(reversepost) == 0:
+        end = get_time()
+        return {
+            "total_puntos": 0,
+            "total_individuos": 0,
+            "primeros_5": al.new_list(),
+            "ultimos_5": al.new_list(),
+            "tiempo_ms": delta_time(start, end)
+        }
+
+    # Pasar reversepost (stack) a un array_list en orden topológico 
+    order = al.new_list()          # la ruta migratoria
+    aux_stack = st.new_stack()
+
+    # invertimos el stack en aux_stack
+    while st.size(reversepost) > 0:
+        v = st.pop(reversepost)
+        st.push(aux_stack, v)
+
+    # reconstruimos reversepost y llenamos order en el orden correcto
+    while st.size(aux_stack) > 0:
+        v = st.pop(aux_stack)
+        st.push(reversepost, v)
+        al.add_last(order, v)
+
+    total_puntos = al.size(order)
+
+    # --- 3. Calcular total de individuos únicos que usan la ruta ---
+    individuos_set = mp.new_map(5000, 0.7)   # mapa id_grulla -> True
+
+    for i in range(total_puntos):
+        nid = al.get_element(order, i)
+        node = mp.get(nodes_map, nid)
+
+        tags_list = node["tags"]            # array_list de IDs de grulla
+        tags_count = al.size(tags_list)
+
+        for j in range(tags_count):
+            grulla_id = al.get_element(tags_list, j)
+            mp.put(individuos_set, grulla_id, True)
+
+    total_individuos = mp.size(individuos_set)
+
+    # --- 4. Construir lista enriquecida de puntos migratorios ---
+    pts_mig = al.new_list()
+
+    for i in range(total_puntos):
+
+        nid = al.get_element(order, i)
+        node = mp.get(nodes_map, nid)
+
+        lat = node.get("lat", "Unknown")
+        lon = node.get("lon", "Unknown")
+
+        tags_list = node["tags"]            # array_list
+        tags_count = al.size(tags_list)
+
+        # -------- TRES primeros y TRES últimos identificadores de grullas --------
+        # primeras 3
+        primeras_3 = al.new_list()
+        limit_first = 3
+        if tags_count < 3:
+            limit_first = tags_count
+
+        for k in range(limit_first):
+            grulla_id = al.get_element(tags_list, k)
+            al.add_last(primeras_3, grulla_id)
+
+        # últimas 3
+        ultimas_3 = al.new_list()
+        limit_last = 3
+        if tags_count < 3:
+            limit_last = tags_count
+
+        start_idx = tags_count - limit_last
+        for k in range(start_idx, tags_count):
+            grulla_id = al.get_element(tags_list, k)
+            al.add_last(ultimas_3, grulla_id)
+
+        # -------- Distancia a vecinos en la ruta migratoria --------
+        dist_prev = "Unknown"
+        dist_next = "Unknown"
+
+        # distancia al vértice anterior en la ruta migratoria
+        if i > 0:
+            prev_id = al.get_element(order, i - 1)
+            prev_node = mp.get(nodes_map, prev_id)
+            dist_prev = haversine(node, prev_node)
+
+        # distancia al vértice siguiente en la ruta migratoria
+        if i < total_puntos - 1:
+            next_id = al.get_element(order, i + 1)
+            next_node = mp.get(nodes_map, next_id)
+            dist_next = haversine(node, next_node)
+
+        # -------- Descripción del punto migratorio --------
+        desc = {
+            "id": nid,
+            "lat": lat,
+            "lon": lon,
+            "num_individuos": tags_count,
+            "primeras_3_grullas": primeras_3,
+            "ultimas_3_grullas": ultimas_3,
+            "distancia_anterior": dist_prev,
+            "distancia_siguiente": dist_next
+        }
+
+        al.add_last(pts_mig, desc)
+
+    # --- 5. Sacar los CINCO primeros y CINCO últimos vértices de la RUTA ---
+    limit = 5
+    if total_puntos < 5:
+        limit = total_puntos
+
+    # sub_list(list, pos_i, num_elements)
+    primeros_5 = al.sub_list(pts_mig, 0, limit)
+    ultimos_5 = al.sub_list(pts_mig, total_puntos - limit, limit)
+
+    end = get_time()
+    tiempo_ms = delta_time(start, end)
+
+    return {
+        "total_puntos": total_puntos,
+        "total_individuos": total_individuos,
+        "primeros_5": primeros_5,
+        "ultimos_5": ultimos_5,
+        "tiempo_ms": tiempo_ms
+    }
 
 def req_4(catalog):
     """
