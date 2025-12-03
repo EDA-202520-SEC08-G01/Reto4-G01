@@ -145,6 +145,7 @@ def print_req_2(control):
         Función que imprime la solución del Requerimiento 2 en consola
     """
     # TODO: Imprimir el resultado del requerimiento 2
+    
     pass
 
 
@@ -153,7 +154,47 @@ def print_req_3(control):
         Función que imprime la solución del Requerimiento 3 en consola
     """
     # TODO: Imprimir el resultado del requerimiento 3
-    pass
+
+    total_puntos, total_invididuos, primeros_5, ultimos_5, tiempo_ms = l.req_3(control)
+
+    headers = ["Identificador Único","Posición","Fecha de creación","Grullas (tags)","Conteo","Prom. dist. agua (km)"]
+
+    tabla_primeros = []
+    tabla_ultimos = []
+
+    for i in primeros_5["elements"]:
+        tabla_primeros.append([i["id"],
+                              (i['lat'], i['lon']),
+                              i['creation_timestamp'],
+                              i['tags']["elements"],
+                              i["events_count"],
+                              i['prom_distancia_agua']])
+    
+    for i in ultimos_5["elements"]:
+        tabla_ultimos.append([i['id'],
+                              (i['lat'], i['lon']),
+                              i['creation_timestamp'],
+                              i['tags']["elements"],
+                              i["events_count"],
+                              i['prom_distancia_agua']])
+
+    print("==========================================================")
+    print("                      Requerimiento 1                     ")
+    print("==========================================================")
+
+    print("==--- Información cargada ---==")
+    print("Total de puntos migratorios: ", total_puntos)
+    print("Total de invididuos: ", total_invididuos)
+    print("Tiempo [ms]: ", tiempo_ms)
+
+    print("========================================================== \n")
+    print("==--- Primeros 5 elementos del catálogo ---==")
+    print(tabulate(tabla_primeros, headers=headers, tablefmt="fancy_grid", stralign="center"))
+    print("========================================================== \n")
+    print("==--- Últimos 5 elementos del catálogo ---==")
+    print(tabulate(tabla_ultimos, headers=headers, tablefmt="fancy_grid", stralign="center"))
+    print("========================================================== \n")
+    print()
 
 
 def print_req_4(control):
