@@ -22,6 +22,27 @@ def haversine_km(lat1, lon1, lat2, lon2):
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
     return R * c
 
+def find_closest_node(catalog, lat, lon):
+    """
+    Encuentra el nodo más cercano a una coordenada GPS dada.
+    Retorna el ID del nodo más cercano.
+    """
+    nodes_list = catalog["nodes"]
+    min_distance = float('inf')
+    closest_node_id = None
+    
+    for i in range(al.size(nodes_list)):
+        node = al.get_element(nodes_list, i)
+        node_lat = node["lat"]
+        node_lon = node["lon"]
+        
+        distance = haversine_km(lat, lon, node_lat, node_lon)
+        
+        if distance < min_distance:
+            min_distance = distance
+            closest_node_id = node["id"]
+    
+    return closest_node_id
 
 def cmp_events_by_timestamp(e1, e2):
     return e1["timestamp"] < e2["timestamp"]
