@@ -157,26 +157,28 @@ def print_req_3(control):
 
     total_puntos, total_invididuos, primeros_5, ultimos_5, tiempo_ms = l.req_3(control)
 
-    headers = ["Identificador Único","Posición","Fecha de creación","Grullas (tags)","Conteo","Prom. dist. agua (km)"]
+    headers = ["Identificador Único","Posición","Numero de individuos","Primeras tres grullas","Ultimas tres grullas","Distancia al punto anterior (km)","Distancia al siguiente punto (km)"]
 
     tabla_primeros = []
     tabla_ultimos = []
 
     for i in primeros_5["elements"]:
-        tabla_primeros.append([i["id"],
+        tabla_primeros.append([i['id'],
                               (i['lat'], i['lon']),
-                              i['creation_timestamp'],
-                              i['tags']["elements"],
-                              i["events_count"],
-                              i['prom_distancia_agua']])
+                              i['num_individuos'],
+                              i['primeras_3_grullas']["elements"],
+                              i['ultimas_3_grullas']["elements"],
+                              i['distancia_anterior'],
+                              i['distancia_siguiente']])
     
     for i in ultimos_5["elements"]:
         tabla_ultimos.append([i['id'],
                               (i['lat'], i['lon']),
-                              i['creation_timestamp'],
-                              i['tags']["elements"],
-                              i["events_count"],
-                              i['prom_distancia_agua']])
+                              i['num_individuos'],
+                              i['primeras_3_grullas']["elements"],
+                              i['ultimas_3_grullas']["elements"],
+                              i['distancia_anterior'],
+                              i['distancia_siguiente']])
 
     print("==========================================================")
     print("                      Requerimiento 1                     ")
