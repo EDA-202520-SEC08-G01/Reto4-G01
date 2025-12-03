@@ -55,7 +55,6 @@ def load_data(catalog, filename):
         reader = csv.DictReader(f)
 
         for row in reader:
-
             event_id = row["event-id"]
             lat = float(row["location-lat"])
             lon = float(row["location-long"])
@@ -90,28 +89,22 @@ def load_data(catalog, filename):
 
     total_eventos = al.size(events)
 
-    # ==========================================================
-    # 2. ORDENAR EVENTOS POR TIMESTAMP
-    # ==========================================================
+    # Ordenar eventos
     if total_eventos > 1:
         events_sorted = al.merge_sort(events, cmp_events_by_timestamp)
         catalog["events"] = events_sorted
         events = events_sorted
 
-    # ==========================================================
-    # 3. CONSTRUIR NODOS (USANDO EL PRIMER EVENTO DEL NODO)
-    # ==========================================================
+    # Inicializar estructuras
     nodes_list = catalog["nodes"]
     nodes_by_id = catalog["nodes_by_id"]
     event_to_node = catalog["event_to_node"]
     g_dist = catalog["graph_distance"]
     g_water = catalog["graph_water"]
 
-    current_node = None
     node_count = 0
 
     for i in range(total_eventos):
-
         ev = al.get_element(events, i)
         ev_id = ev["event-id"]
         ev_lat = ev["lat"]
@@ -120,8 +113,55 @@ def load_data(catalog, filename):
         ev_dist_agua = ev["dist_agua_km"]
         ev_tag = ev["tag"]
 
-        # ---- primer nodo ----
-        if current_node is None:
+        # Buscar si el evento pertenece a algún nodo existente
+        nodo_encontrado = None
+        
+        for j in range(al.size(nodes_list)):
+            node = al.get_element(nodes_list, j)
+            
+            # Calcular distancia temporal y espacial
+            dt_hours = abs(
+                (ev_time - node["creation_timestamp"]).total_seconds()
+            ) / 3600.0
+            
+            d_km = haversine_km(
+                node["lat"],
+                node["lon"],
+                ev_lat,
+                ev_lon
+            )
+            
+            # Verificar si cumple AMBAS condiciones
+            if d_km < 3.0 and dt_hours < 3.0:
+                nodo_encontrado = node
+                break  # Tomar el PRIMER nodo que cumpla
+        
+        if nodo_encontrado is not None:
+            # Agregar evento al nodo existente
+            al.add_last(nodo_encontrado["events"], ev)
+            nodo_encontrado["events_count"] += 1
+
+            # Agregar tag si no existe
+            tags_list = nodo_encontrado["tags"]
+            found = False
+            for j in range(al.size(tags_list)):
+                if al.get_element(tags_list, j) == ev_tag:
+                    found = True
+                    break
+            if not found:
+                al.add_last(tags_list, ev_tag)
+
+            # Actualizar promedio de distancia al agua
+            c = nodo_encontrado["events_count"]
+            old_avg = nodo_encontrado["prom_distancia_agua"]
+            nodo_encontrado["prom_distancia_agua"] = (
+                old_avg * (c - 1) + ev_dist_agua
+            ) / c
+
+            mp.put(event_to_node, ev_id, nodo_encontrado["id"])
+        
+        else:
+            # Crear nuevo nodo
             node_id = ev_id
             node = {
                 "id": node_id,
@@ -143,76 +183,13 @@ def load_data(catalog, filename):
             dg.insert_vertex(g_water, node_id, node)
             mp.put(event_to_node, ev_id, node_id)
 
-            current_node = node
             node_count += 1
-            continue
 
-        # ---- decidir si el evento entra al nodo actual ----
-        dt_hours = abs(
-            (ev_time - current_node["creation_timestamp"]).total_seconds()
-        ) / 3600.0
-
-        d_km = haversine_km(
-            current_node["lat"],
-            current_node["lon"],
-            ev_lat,
-            ev_lon
-        )
-
-        if d_km < 3.0 and dt_hours < 3.0:
-            # se queda en el mismo nodo
-            al.add_last(current_node["events"], ev)
-            current_node["events_count"] += 1
-
-            tags_list = current_node["tags"]
-            found = False
-            for j in range(al.size(tags_list)):
-                if al.get_element(tags_list, j) == ev_tag:
-                    found = True
-                    break
-            if not found:
-                al.add_last(tags_list, ev_tag)
-
-            c = current_node["events_count"]
-            old_avg = current_node["prom_distancia_agua"]
-            current_node["prom_distancia_agua"] = (
-                old_avg * (c - 1) + ev_dist_agua
-            ) / c
-
-            mp.put(event_to_node, ev_id, current_node["id"])
-            continue
-
-        # ---- crear un nuevo nodo ----
-        node_id = ev_id
-        node = {
-            "id": node_id,
-            "lat": ev_lat,
-            "lon": ev_lon,
-            "creation_timestamp": ev_time,
-            "tags": al.new_list(),
-            "events": al.new_list(),
-            "events_count": 1,
-            "prom_distancia_agua": ev_dist_agua
-        }
-
-        al.add_last(node["events"], ev)
-        al.add_last(node["tags"], ev_tag)
-
-        al.add_last(nodes_list, node)
-        mp.put(nodes_by_id, node_id, node)
-        dg.insert_vertex(g_dist, node_id, node)
-        dg.insert_vertex(g_water, node_id, node)
-        mp.put(event_to_node, ev_id, node_id)
-
-        current_node = node
-        node_count += 1
-
-    total_nodos = node_count
+    total_nodos = al.size(nodes_list)
     total_grullas = mp.size(tags_map)
 
-    # ==========================================================
-    # 4. CONSTRUIR LOS ARCOS (distancia y agua)
-    # ==========================================================
+    # ARCOS DEL GRAFO
+
     last_node_by_tag = mp.new_map(total_grullas + 1, 0.7)
     dist_migratoria = mp.new_map(total_nodos + 1, 0.7)
     dist_hidrica = mp.new_map(total_nodos + 1, 0.7)
@@ -229,15 +206,19 @@ def load_data(catalog, filename):
             mp.put(last_node_by_tag, tag, node_id)
             continue
 
-        if node_id != prev_node_id:
+        # CAMBIO: Crear arco INCLUSO si node_id == prev_node_id
+        if True:  
             node_prev = mp.get(nodes_by_id, prev_node_id)
             node_curr = mp.get(nodes_by_id, node_id)
 
+        # Solo crear arco si son nodos DIFERENTES
+        if node_id != prev_node_id:
             d_km = haversine_km(
                 node_prev["lat"], node_prev["lon"],
                 node_curr["lat"], node_curr["lon"]
             )
 
+            # Grafo de distancia
             sub = mp.get(dist_migratoria, prev_node_id)
             if sub is None:
                 sub = mp.new_map(4, 0.7)
@@ -250,6 +231,7 @@ def load_data(catalog, filename):
             agg["count"] += 1
             mp.put(sub, node_id, agg)
 
+            # Grafo hídrico
             agua = node_curr["prom_distancia_agua"]
 
             sub_h = mp.get(dist_hidrica, prev_node_id)
@@ -264,9 +246,9 @@ def load_data(catalog, filename):
             agg_h["count"] += 1
             mp.put(sub_h, node_id, agg_h)
 
-            mp.put(last_node_by_tag, tag, node_id)
+        mp.put(last_node_by_tag, tag, node_id)
 
-    # --- agregar arcos al grafo de distancia ---
+    # Agregar arcos
     keys_u = mp.key_set(dist_migratoria)
     for i in range(al.size(keys_u)):
         u = al.get_element(keys_u, i)
@@ -278,7 +260,6 @@ def load_data(catalog, filename):
             avg = agg["sum"] / agg["count"]
             dg.add_edge(g_dist, u, v, avg)
 
-    # --- agregar arcos al grafo hídrico ---
     keys_u = mp.key_set(dist_hidrica)
     for i in range(al.size(keys_u)):
         u = al.get_element(keys_u, i)
@@ -290,12 +271,9 @@ def load_data(catalog, filename):
             avg = agg["sum"] / agg["count"]
             dg.add_edge(g_water, u, v, avg)
 
-    total_arcos_distance = dg.size(g_dist)
-    total_arcos_water = dg.size(g_water)
+    total_arcos_distance = dg.order(g_dist)
+    total_arcos_water = dg.order(g_water)
 
-    # ==========================================================
-    # 5. PRIMEROS 5 Y ÚLTIMOS 5 NODOS
-    # ==========================================================
     primeros_5 = al.new_list()
     ultimos_5 = al.new_list()
 
@@ -323,6 +301,7 @@ def load_data(catalog, filename):
         primeros_5,
         ultimos_5
     )
+
 
 # Funciones de consulta sobre el catálogo
 def req_1(catalog, migr_origin, migr_dest):
