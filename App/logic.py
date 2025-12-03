@@ -39,7 +39,7 @@ def find_closest_node(catalog, lat, lon):
         node_lat = node["lat"]
         node_lon = node["lon"]
         
-        distance = haversine_km(lat, lon, node_lat, node_lon)
+        distance = haversine(lat, lon, node_lat, node_lon)
         
         if distance < min_distance:
             min_distance = distance
