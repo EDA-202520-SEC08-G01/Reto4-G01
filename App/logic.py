@@ -379,46 +379,44 @@ def req_3(catalog):
     """
 
     start = get_time()
-    graph = catalog["graph_distance"]     # grafo del nicho biológico
-    nodes_map = catalog["nodes_by_id"]    # id_nodo -> info_nodo
-    structure = dfo.dfo(graph)
-    reversepost = structure["reversepost"]    # stack
 
+    graph = catalog["graph_distance"]     # Grafo del nicho biológico
+    nodes_map = catalog["nodes_by_id"]    # id_nodo -> info_nodo
+
+    # dfo 
+    structure = dfo.dfo(graph)
+    reversepost = structure["reversepost"]   # stack con reverse postorder
+
+    # Si no hay nada, no hay ruta migratoria viable
     if st.size(reversepost) == 0:
         end = get_time()
-        return {
-            "total_puntos": 0,
-            "total_individuos": 0,
-            "primeros_5": al.new_list(),
-            "ultimos_5": al.new_list(),
-            "tiempo_ms": delta_time(start, end)
-        }
+        tiempo_ms = delta_time(start, end)
+        return (
+            0,                 # total_puntos
+            0,                 # total_individuos
+            al.new_list(),     # primeros_5
+            al.new_list(),     # ultimos_5
+            tiempo_ms
+        )
 
-    # Pasar reversepost (stack) a un array_list en orden topológico 
-    order = al.new_list()          # la ruta migratoria
-    aux_stack = st.new_stack()
-
-    # invertimos el stack en aux_stack
+    # --- 2. Pasar reversepost (stack) a un array_list 'order' en orden topológico ---
+    order = al.new_list()
     while st.size(reversepost) > 0:
-        v = st.pop(reversepost)
-        st.push(aux_stack, v)
-
-    # reconstruimos reversepost y llenamos order en el orden correcto
-    while st.size(aux_stack) > 0:
-        v = st.pop(aux_stack)
-        st.push(reversepost, v)
+        v = st.pop(reversepost)       # al hacer pop de reversepost se obtiene el topological order
         al.add_last(order, v)
 
     total_puntos = al.size(order)
 
-    # --- 3. Calcular total de individuos únicos que usan la ruta ---
-    individuos_set = mp.new_map(5000, 0.7)   # mapa id_grulla -> True
+    #3. Total de individuos únicos que usan la ruta migratoria 
+    individuos_set = mp.new_map(5000, 0.7)   # mapa de grullas usando map
 
     for i in range(total_puntos):
         nid = al.get_element(order, i)
         node = mp.get(nodes_map, nid)
+        if node is None:
+            continue
 
-        tags_list = node["tags"]            # array_list de IDs de grulla
+        tags_list = node["tags"]              # array_list de IDs de grullas
         tags_count = al.size(tags_list)
 
         for j in range(tags_count):
@@ -427,26 +425,31 @@ def req_3(catalog):
 
     total_individuos = mp.size(individuos_set)
 
-    # --- 4. Construir lista enriquecida de puntos migratorios ---
-    pts_mig = al.new_list()
+    # Construir lista enriquecida de puntos migratorios de la ruta
+    enriched = al.new_list()
 
     for i in range(total_puntos):
 
         nid = al.get_element(order, i)
         node = mp.get(nodes_map, nid)
+        if node is None:
+            continue
 
-        lat = node.get("lat", "Unknown")
-        lon = node.get("lon", "Unknown")
+        # lat / lon (Unknown si no existen)
+        if "lat" in node and "lon" in node:
+            lat = node["lat"]
+            lon = node["lon"]
+        else:
+            lat = "Unknown"
+            lon = "Unknown"
 
-        tags_list = node["tags"]            # array_list
+        tags_list = node["tags"]           # array_list
         tags_count = al.size(tags_list)
 
-        # -------- TRES primeros y TRES últimos identificadores de grullas --------
+        # Tres primeros y tres últimos IDs de grullas
         # primeras 3
         primeras_3 = al.new_list()
-        limit_first = 3
-        if tags_count < 3:
-            limit_first = tags_count
+        limit_first = 3 if tags_count >= 3 else tags_count
 
         for k in range(limit_first):
             grulla_id = al.get_element(tags_list, k)
@@ -454,32 +457,31 @@ def req_3(catalog):
 
         # últimas 3
         ultimas_3 = al.new_list()
-        limit_last = 3
-        if tags_count < 3:
-            limit_last = tags_count
+        limit_last = 3 if tags_count >= 3 else tags_count
 
         start_idx = tags_count - limit_last
         for k in range(start_idx, tags_count):
             grulla_id = al.get_element(tags_list, k)
             al.add_last(ultimas_3, grulla_id)
 
-        # -------- Distancia a vecinos en la ruta migratoria --------
+        # Distancias a vértices vecinos en la ruta
         dist_prev = "Unknown"
         dist_next = "Unknown"
 
         # distancia al vértice anterior en la ruta migratoria
-        if i > 0:
+        if i > 0 and lat != "Unknown" and lon != "Unknown":
             prev_id = al.get_element(order, i - 1)
             prev_node = mp.get(nodes_map, prev_id)
-            dist_prev = haversine(node, prev_node)
+            if prev_node is not None and "lat" in prev_node and "lon" in prev_node:
+                dist_prev = haversine(lat, lon,prev_node["lat"], prev_node["lon"])
 
         # distancia al vértice siguiente en la ruta migratoria
-        if i < total_puntos - 1:
+        if i < total_puntos - 1 and lat != "Unknown" and lon != "Unknown":
             next_id = al.get_element(order, i + 1)
             next_node = mp.get(nodes_map, next_id)
-            dist_next = haversine(node, next_node)
+            if next_node is not None and "lat" in next_node and "lon" in next_node:
+                dist_next = haversine(lat, lon, next_node["lat"], next_node["lon"])
 
-        # -------- Descripción del punto migratorio --------
         desc = {
             "id": nid,
             "lat": lat,
@@ -491,27 +493,25 @@ def req_3(catalog):
             "distancia_siguiente": dist_next
         }
 
-        al.add_last(pts_mig, desc)
+        al.add_last(enriched, desc)
 
-    # --- 5. Sacar los CINCO primeros y CINCO últimos vértices de la RUTA ---
-    limit = 5
-    if total_puntos < 5:
-        limit = total_puntos
+    # --- 5. Sacar los CINCO primeros y CINCO últimos vértices de la ruta migratoria ---
+    limit = 5 if total_puntos >= 5 else total_puntos
 
     # sub_list(list, pos_i, num_elements)
-    primeros_5 = al.sub_list(pts_mig, 0, limit)
-    ultimos_5 = al.sub_list(pts_mig, total_puntos - limit, limit)
-
+    primeros_5 = al.sub_list(enriched, 0, limit)
+    ultimos_5 = al.sub_list(enriched, total_puntos - limit, limit)
     end = get_time()
     tiempo_ms = delta_time(start, end)
 
-    return {
-        "total_puntos": total_puntos,
-        "total_individuos": total_individuos,
-        "primeros_5": primeros_5,
-        "ultimos_5": ultimos_5,
-        "tiempo_ms": tiempo_ms
-    }
+    # --- 6. Retorno en el formato que probablemente usará tu view ---
+    return (
+        total_puntos,
+        total_individuos,
+        primeros_5,
+        ultimos_5,
+        tiempo_ms
+    )
 
 def req_4(catalog):
     """
