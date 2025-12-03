@@ -99,7 +99,7 @@ def print_req_1(control):
     tabla_ultimos = []
 
     for i in primeros_5["elements"]:
-        tabla_primeros.append([i,
+        tabla_primeros.append([i["id"],
                               (i['lat'], i['lon']),
                               i['creation_timestamp'],
                               i['tags']["elements"],
@@ -113,13 +113,19 @@ def print_req_1(control):
                               i['tags']["elements"],
                               i["events_count"],
                               i['prom_distancia_agua']])
+    
+    ruta = ""
+    for i in range(al.size(path_al)):
+        ruta += al.get_element(path_al, i)
+        if i < al.size(path_al) - 1:
+            ruta += " -> "
 
     print("==========================================================")
     print("                      Requerimiento 1                     ")
     print("==========================================================")
 
     print("==--- Información cargada ---==")
-    print("Ruta Tomada (mejor ruta): ", path_al['elements'])
+    print("Ruta Tomada (mejor ruta): ", ruta)
     print("Distancia entre nodos: ", distancia_nodos)
     print("Numero de puntos en la ruta: ", tamano)
     print("Tiempo [ms]: ", tiempo_ms)

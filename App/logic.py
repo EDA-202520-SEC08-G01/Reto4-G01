@@ -352,7 +352,7 @@ def req_1(catalog, migr_origin, migr_dest):
 
     path_al = al.new_list()
     for i in range(lt.size(path)):
-        al.add_last(path_al, lt.get_element(path, i))
+        al.add_last(path_al, lt.get_element(path, i)["info"])
 
     i_primeros_5 = al.new_list()
     i_ultimos_5 = al.new_list()
