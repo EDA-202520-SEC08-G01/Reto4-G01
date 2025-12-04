@@ -241,10 +241,7 @@ def load_data(catalog, filename='1000_cranes_mongolia_small.csv'):
                 dist_agua_km = float(comments) / 1000.0
 
             tag_str = row["tag-local-identifier"]
-            if tag_str.isdigit():
-                tag = int(tag_str)
-            else:
-                tag = tag_str
+            tag = int(tag_str) if tag_str.isdigit() else tag_str
 
             evento = {
                 "event-id": event_id,
@@ -275,7 +272,7 @@ def load_data(catalog, filename='1000_cranes_mongolia_small.csv'):
     g_dist = catalog["graph_distance"]
     g_water = catalog["graph_water"]
 
-    node_count = 0
+    # CREACIÓN DE NODOS
 
     for i in range(total_eventos):
         ev = al.get_element(events, i)
@@ -288,43 +285,48 @@ def load_data(catalog, filename='1000_cranes_mongolia_small.csv'):
 
         # Buscar si el evento pertenece a algún nodo existente
         nodo_encontrado = None
-        
-        for j in range(al.size(nodes_list)):
+        j = 0
+        total_nodes = al.size(nodes_list)
+
+        # NO HAY break: se detiene solo al encontrar nodo válido
+        while j < total_nodes and nodo_encontrado is None:
             node = al.get_element(nodes_list, j)
-            
-            # Calcular distancia temporal y espacial
+
             dt_hours = abs(
                 (ev_time - node["creation_timestamp"]).total_seconds()
             ) / 3600.0
-            
+
             d_km = haversine(
-                node["lat"],
-                node["lon"],
-                ev_lat,
-                ev_lon
+                node["lat"], node["lon"],
+                ev_lat, ev_lon
             )
-            
-            # Verificar si cumple AMBAS condiciones
+
             if d_km < 3.0 and dt_hours < 3.0:
                 nodo_encontrado = node
-                break  # Tomar el PRIMER nodo que cumpla
-        
+
+            j += 1
+
+        # Si se encontró nodo, agregar evento al nodo
         if nodo_encontrado is not None:
-            # Agregar evento al nodo existente
+
             al.add_last(nodo_encontrado["events"], ev)
             nodo_encontrado["events_count"] += 1
 
-            # Agregar tag si no existe
+            # Agregar tag si no existe (sin break)
             tags_list = nodo_encontrado["tags"]
             found = False
-            for j in range(al.size(tags_list)):
-                if al.get_element(tags_list, j) == ev_tag:
+            k = 0
+            total_tags = al.size(tags_list)
+
+            while k < total_tags and not found:
+                if al.get_element(tags_list, k) == ev_tag:
                     found = True
-                    break
+                k += 1
+
             if not found:
                 al.add_last(tags_list, ev_tag)
 
-            # Actualizar promedio de distancia al agua
+            # Actualizar promedio distancia al agua
             c = nodo_encontrado["events_count"]
             old_avg = nodo_encontrado["prom_distancia_agua"]
             nodo_encontrado["prom_distancia_agua"] = (
@@ -332,7 +334,7 @@ def load_data(catalog, filename='1000_cranes_mongolia_small.csv'):
             ) / c
 
             mp.put(event_to_node, ev_id, nodo_encontrado["id"])
-        
+
         else:
             # Crear nuevo nodo
             node_id = ev_id
@@ -356,12 +358,10 @@ def load_data(catalog, filename='1000_cranes_mongolia_small.csv'):
             dg.insert_vertex(g_water, node_id, node)
             mp.put(event_to_node, ev_id, node_id)
 
-            node_count += 1
-
     total_nodos = al.size(nodes_list)
     total_grullas = mp.size(tags_map)
 
-    # ARCOS DEL GRAFO
+    # CREACIÓN DE ARCOS 
 
     last_node_by_tag = mp.new_map(total_grullas + 1, 0.7)
     dist_migratoria = mp.new_map(total_nodos + 1, 0.7)
@@ -375,53 +375,53 @@ def load_data(catalog, filename='1000_cranes_mongolia_small.csv'):
         node_id = mp.get(event_to_node, ev_id)
         prev_node_id = mp.get(last_node_by_tag, tag)
 
+        # CASO 1: Es el primer evento de esta grulla
         if prev_node_id is None:
             mp.put(last_node_by_tag, tag, node_id)
-            continue
 
-        # CAMBIO: Crear arco INCLUSO si node_id == prev_node_id
-        if True:  
+        else:
             node_prev = mp.get(nodes_by_id, prev_node_id)
             node_curr = mp.get(nodes_by_id, node_id)
 
-        # Solo crear arco si son nodos DIFERENTES
-        if node_id != prev_node_id:
-            d_km = haversine(
-                node_prev["lat"], node_prev["lon"],
-                node_curr["lat"], node_curr["lon"]
-            )
+            if node_id != prev_node_id:
+                d_km = haversine(
+                    node_prev["lat"], node_prev["lon"],
+                    node_curr["lat"], node_curr["lon"]
+                )
 
-            # Grafo de distancia
-            sub = mp.get(dist_migratoria, prev_node_id)
-            if sub is None:
-                sub = mp.new_map(4, 0.7)
-                mp.put(dist_migratoria, prev_node_id, sub)
+                # Grafo de distancia
+                sub = mp.get(dist_migratoria, prev_node_id)
+                if sub is None:
+                    sub = mp.new_map(4, 0.7)
+                    mp.put(dist_migratoria, prev_node_id, sub)
 
-            agg = mp.get(sub, node_id)
-            if agg is None:
-                agg = {"sum": 0.0, "count": 0}
-            agg["sum"] += d_km
-            agg["count"] += 1
-            mp.put(sub, node_id, agg)
+                agg = mp.get(sub, node_id)
+                if agg is None:
+                    agg = {"sum": 0.0, "count": 0}
 
-            # Grafo hídrico
-            agua = node_curr["prom_distancia_agua"]
+                agg["sum"] += d_km
+                agg["count"] += 1
+                mp.put(sub, node_id, agg)
 
-            sub_h = mp.get(dist_hidrica, prev_node_id)
-            if sub_h is None:
-                sub_h = mp.new_map(4, 0.7)
-                mp.put(dist_hidrica, prev_node_id, sub_h)
+                # Grafo hídrico
+                agua = node_curr["prom_distancia_agua"]
+                sub_h = mp.get(dist_hidrica, prev_node_id)
+                if sub_h is None:
+                    sub_h = mp.new_map(4, 0.7)
+                    mp.put(dist_hidrica, prev_node_id, sub_h)
 
-            agg_h = mp.get(sub_h, node_id)
-            if agg_h is None:
-                agg_h = {"sum": 0.0, "count": 0}
-            agg_h["sum"] += agua
-            agg_h["count"] += 1
-            mp.put(sub_h, node_id, agg_h)
+                agg_h = mp.get(sub_h, node_id)
+                if agg_h is None:
+                    agg_h = {"sum": 0.0, "count": 0}
 
-        mp.put(last_node_by_tag, tag, node_id)
+                agg_h["sum"] += agua
+                agg_h["count"] += 1
+                mp.put(sub_h, node_id, agg_h)
 
-    # Agregar arcos
+            mp.put(last_node_by_tag, tag, node_id)
+
+    # ARCOS DEFINITIVOS
+
     keys_u = mp.key_set(dist_migratoria)
     for i in range(al.size(keys_u)):
         u = al.get_element(keys_u, i)
@@ -444,8 +444,7 @@ def load_data(catalog, filename='1000_cranes_mongolia_small.csv'):
             avg = agg["sum"] / agg["count"]
             dg.add_edge(g_water, u, v, avg)
 
-    total_arcos_distance = dg.order(g_dist)
-    total_arcos_water = dg.order(g_water)
+    # PRIMEROS Y ÚLTIMOS
 
     primeros_5 = al.new_list()
     ultimos_5 = al.new_list()
@@ -469,8 +468,8 @@ def load_data(catalog, filename='1000_cranes_mongolia_small.csv'):
         total_grullas,
         total_eventos,
         total_nodos,
-        total_arcos_distance,
-        total_arcos_water,
+        dg.order(g_dist),
+        dg.order(g_water),
         primeros_5,
         ultimos_5
     )
