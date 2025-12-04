@@ -425,7 +425,7 @@ def load_data(catalog, filename='1000_cranes_mongolia_small.csv'):
         ultimos_5
     )
 
-
+#prueba commit
 # Funciones de consulta sobre el catálogo
 def req_1(catalog, migr_origin, migr_dest):
     """
