@@ -718,8 +718,7 @@ def req_3(catalog):
         }
 
         al.add_last(enriched, desc)
-
-    # --- 5. Sacar los CINCO primeros y CINCO últimos vértices de la ruta migratoria ---
+        
     limit = 5 if total_puntos >= 5 else total_puntos
 
     # sub_list(list, pos_i, num_elements)
@@ -728,7 +727,6 @@ def req_3(catalog):
     end = get_time()
     tiempo_ms = delta_time(start, end)
 
-    # --- 6. Retorno en el formato que probablemente usará tu view ---
     return (
         total_puntos,
         total_individuos,
