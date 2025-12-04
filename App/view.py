@@ -598,8 +598,84 @@ def print_req_6(control):
     """
         Función que imprime la solución del Requerimiento 6 en consola
     """
-    # TODO: Imprimir el resultado del requerimiento 6
-    pass
+
+    print("==========================================================")
+    print("                      Requerimiento 6                     ")
+    print("==========================================================")
+
+    resultado = l.req_6(control)
+
+    num_subredes = resultado["num_subredes"]
+    top_subredes = resultado["subredes_top"]
+    tiempo_ms = resultado["tiempo_ms"]
+
+    print("==--- Información general sobre las subredes ---==")
+    print("Número total de subredes conectadas: ", num_subredes)
+    print("Tiempo [ms]: ", tiempo_ms)
+    print("========================================================== \n")
+
+    # ---- TABLA DE LAS 5 SUBREDES MÁS GRANDES ----
+
+    headers = [
+        "ID Subred",
+        "# Puntos",
+        "Lat_min",
+        "Lat_max",
+        "Lon_min",
+        "Lon_max",
+        "# Individuos",
+        "Primeros 3 puntos (id, lat, lon)",
+        "Últimos 3 puntos (id, lat, lon)",
+        "Primeras 3 grullas",
+        "Últimas 3 grullas"
+    ]
+
+    tabla = []
+
+    for i in range(al.size(top_subredes)):
+        sub = al.get_element(top_subredes, i)
+
+        # Primeros 3 puntos
+        primeros = []
+        for j in range(al.size(sub["primeros_3_puntos"])):
+            nodo = al.get_element(sub["primeros_3_puntos"], j)
+            primeros.append(f"{nodo['id']} ({nodo['lat']:.5f}, {nodo['lon']:.5f})")
+
+        # Últimos 3 puntos
+        ultimos = []
+        for j in range(al.size(sub["ultimos_3_puntos"])):
+            nodo = al.get_element(sub["ultimos_3_puntos"], j)
+            ultimos.append(f"{nodo['id']} ({nodo['lat']:.5f}, {nodo['lon']:.5f})")
+
+        # Primeras y últimas 3 grullas
+        primeras_grullas = []
+        for j in range(al.size(sub["primeros_3_grullas"])):
+            gid = al.get_element(sub["primeros_3_grullas"], j)
+            primeras_grullas.append(str(gid))
+
+        ultimas_grullas = []
+        for j in range(al.size(sub["ultimos_3_grullas"])):
+            gid = al.get_element(sub["ultimos_3_grullas"], j)
+            ultimas_grullas.append(str(gid))
+
+        tabla.append([
+            sub["subred_id"],
+            sub["num_puntos"],
+            sub["lat_min"],
+            sub["lat_max"],
+            sub["lon_min"],
+            sub["lon_max"],
+            sub["total_individuos"],
+            primeros,
+            ultimos,
+            primeras_grullas,
+            ultimas_grullas
+        ])
+
+    print("==--- 5 subredes más grandes ---==")
+    print(tabulate(tabla, headers=headers, tablefmt="fancy_grid", stralign="center"))
+    print("========================================================== \n")
+
 
 # Se crea la lógica asociado a la vista
 control = new_logic()
