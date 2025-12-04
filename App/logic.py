@@ -28,6 +28,7 @@ def haversine(lat1, lon1, lat2, lon2):
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
     return R * c
 
+<<<<<<< HEAD
 def find_closest_node(catalog, lat, lon):
     """
     Encuentra el nodo más cercano a una coordenada GPS dada.
@@ -139,6 +140,8 @@ def get_first_last_nodes(catalog, path_list, graph):
             al.add_last(last_5, node_info)
     
     return first_5, last_5
+=======
+>>>>>>> 64d95a4756bb9ad936316fa8b7b2efad6cdceb41
 
 def cmp_events_by_timestamp(e1, e2):
     return e1["timestamp"] < e2["timestamp"]
@@ -729,12 +732,54 @@ def req_3(catalog):
         ultimos_5,
         tiempo_ms
     )
+def find_closest_node(catalog, lat, lon):
+    """
+    Encuentra el nodo más cercano a una coordenada GPS dada.
+    Retorna el ID del nodo más cercano.
+    """
+    nodes_list = catalog["nodes"]
+    best_node = None
+    best_dist = math.inf
+
+    n = al.size(nodes_list)
+    for i in range(n):
+        node = al.get_element(nodes_list, i)
+        d = haversine(lat, lon, node["lat"], node["lon"])
+        if d < best_dist:
+            best_dist = d
+            best_node = node
+
+    return best_node
+
+def get_first_last_nodes(catalog, vertices_mst, graph):
+    primeros_5 = al.new_list()
+    ultimos_5 = al.new_list()
+    total_nodos = al.size(vertices_mst)
+
+    if total_nodos > 0:
+        limite = min(5, total_nodos)
+        for i in range(limite):
+            node_id = al.get_element(vertices_mst, i)
+            node = dg.get_vertex(graph, node_id)
+            if node is not None:
+                al.add_last(primeros_5, node["info"])
+
+        limite2 = min(5, total_nodos)
+        inicio_ultimos = total_nodos - limite2
+        for i in range(inicio_ultimos, total_nodos):
+            node_id = al.get_element(vertices_mst, i)
+            node = dg.get_vertex(graph, node_id)
+            if node is not None:
+                al.add_last(ultimos_5, node["info"])
+
+    return primeros_5, ultimos_5
 
 def req_4(catalog, lat, lon):
     """
     Retorna el resultado del requerimiento 4
     """
     # TODO: Modificar el requerimiento 4
+    
     start = get_time()
     origin, cercania = find_closest_node(catalog, lat, lon)
     visited_map = prim.prim_mst(catalog["graph_water"], origin)

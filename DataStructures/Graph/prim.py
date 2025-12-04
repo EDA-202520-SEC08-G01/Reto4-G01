@@ -7,7 +7,14 @@ from DataStructures.List import array_list as al
 from DataStructures.Graph import prim_structure as pst
 
 def prim_mst(my_graph, source):
+<<<<<<< HEAD
    
+=======
+
+    # Normalizar llaves a string
+    source = str(source)
+
+>>>>>>> 64d95a4756bb9ad936316fa8b7b2efad6cdceb41
     g_order = dg.order(my_graph)
     prim = pst.new_prim_structure(source, g_order)
 
@@ -30,38 +37,77 @@ def prim_mst(my_graph, source):
         adj_map = vt.get_adjacents(v_obj)
         adj_keys = mp.key_set(adj_map)
 
+<<<<<<< HEAD
         for i in range(al.size(adj_keys)):
             w = al.get_element(adj_keys, i)
             edge = mp.get(adj_map, w)
             weight = edg.weight(edge)
+=======
+        # Si el vértice no existe, no procesamos adyacentes (sin continue)
+        if v_obj is not None:
+>>>>>>> 64d95a4756bb9ad936316fa8b7b2efad6cdceb41
 
             if mp.get(prim["marked"], w) is True:
                 continue
 
+<<<<<<< HEAD
             old_dist = mp.get(prim["dist_to"], w)
             if weight < old_dist:
                 mp.put(prim["dist_to"], w, weight)
                 mp.put(prim["edge_from"], w, v)
                 pq.insert(prim["pq"], w, weight)
+=======
+            for i in range(al.size(adj_keys)):
+                w = str(al.get_element(adj_keys, i))
+                edge = mp.get(adj_map, w)
+                weight = edg.weight(edge)
+
+                marked_w = mp.get(prim["marked"], w)
+
+                # Relajación solo si NO está marcado
+                if marked_w is False:
+                    old_dist = mp.get(prim["dist_to"], w)
+
+                    if weight < old_dist:
+                        mp.put(prim["dist_to"], w, weight)
+                        mp.put(prim["edge_from"], w, v)
+                        pq.insert(prim["pq"], w, weight)
+>>>>>>> 64d95a4756bb9ad936316fa8b7b2efad6cdceb41
 
     return prim
 
 def edges_mst(my_graph, aux_structure):
+<<<<<<< HEAD
    
+=======
+
+>>>>>>> 64d95a4756bb9ad936316fa8b7b2efad6cdceb41
     edges_list = al.new_list()
     keys = mp.key_set(aux_structure["edge_from"])
 
     for i in range(al.size(keys)):
+<<<<<<< HEAD
         v = al.get_element(keys, i)
+=======
+        v = str(al.get_element(keys, i))
+>>>>>>> 64d95a4756bb9ad936316fa8b7b2efad6cdceb41
         u = mp.get(aux_structure["edge_from"], v)
 
         if u is not None:
             dist = mp.get(aux_structure["dist_to"], v)
+<<<<<<< HEAD
+=======
+
+>>>>>>> 64d95a4756bb9ad936316fa8b7b2efad6cdceb41
             arco = {
                 "edge_from": u,
                 "to": v,
                 "dist_to": dist
             }
+<<<<<<< HEAD
+=======
+
+>>>>>>> 64d95a4756bb9ad936316fa8b7b2efad6cdceb41
             al.add_last(edges_list, arco)
 
     return edges_list
@@ -72,10 +118,19 @@ def weight_mst(my_graph, aux_structure):
     keys = mp.key_set(aux_structure["dist_to"])
 
     for i in range(al.size(keys)):
+<<<<<<< HEAD
         v = al.get_element(keys, i)
+=======
+        v = str(al.get_element(keys, i))
+>>>>>>> 64d95a4756bb9ad936316fa8b7b2efad6cdceb41
         dist = mp.get(aux_structure["dist_to"], v)
 
         if dist < float("inf"):
             total += dist
 
+<<<<<<< HEAD
     return total
+=======
+    return total
+
+>>>>>>> 64d95a4756bb9ad936316fa8b7b2efad6cdceb41
