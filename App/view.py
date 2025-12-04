@@ -773,30 +773,32 @@ def print_req_6(control):
         Función que imprime la solución del Requerimiento 6 en consola
     """
 
+    result = l.req_6(control)
+
+    num_subredes = result["num_subredes"]
+    top_subredes = result["subredes_top"]
+    tiempo_ms = result["tiempo_ms"]
+
     print("==========================================================")
     print("                      Requerimiento 6                     ")
     print("==========================================================")
-
-    resultado = l.req_6(control)
-
-    num_subredes = resultado["num_subredes"]
-    top_subredes = resultado["subredes_top"]
-    tiempo_ms = resultado["tiempo_ms"]
-
     print("==--- Información general sobre las subredes ---==")
     print("Número total de subredes conectadas: ", num_subredes)
     print("Tiempo [ms]: ", tiempo_ms)
-    print("========================================================== \n")
+    print("==========================================================\n")
 
-    # ---- TABLA DE LAS 5 SUBREDES MÁS GRANDES ----
+    if num_subredes == 0:
+        print("No se encontró ninguna subred hídrica viable en el nicho biológico.")
+        print("==========================================================\n")
+        return
+
+    print("==--- 5 subredes hídricas más grandes ---==")
 
     headers = [
         "ID Subred",
         "# Puntos",
-        "Lat_min",
-        "Lat_max",
-        "Lon_min",
-        "Lon_max",
+        "Lat_min", "Lat_max",
+        "Lon_min", "Lon_max",
         "# Individuos",
         "Primeros 3 puntos (id, lat, lon)",
         "Últimos 3 puntos (id, lat, lon)",
@@ -806,49 +808,57 @@ def print_req_6(control):
 
     tabla = []
 
-    for i in range(al.size(top_subredes)):
-        sub = al.get_element(top_subredes, i)
+    # Helpers para formatear
+    def fmt_coord(value):
+        if value == "Unknown":
+            return "Unknown"
+        return f"{value:.4f}"
 
-        # Primeros 3 puntos
-        primeros = []
-        for j in range(al.size(sub["primeros_3_puntos"])):
-            nodo = al.get_element(sub["primeros_3_puntos"], j)
-            primeros.append(f"{nodo['id']} ({nodo['lat']:.5f}, {nodo['lon']:.5f})")
+    def fmt_points(lista_puntos):
+        """
+        lista_puntos: array_list con dicts {"id", "lat", "lon"}
+        Se devuelve un string multilínea: 'id (lat, lon)\n...'
+        """
+        filas = []
+        for p in lista_puntos["elements"]:
+            pid = p.get("id", "Unknown")
+            plat = p.get("lat", "Unknown")
+            plon = p.get("lon", "Unknown")
 
-        # Últimos 3 puntos
-        ultimos = []
-        for j in range(al.size(sub["ultimos_3_puntos"])):
-            nodo = al.get_element(sub["ultimos_3_puntos"], j)
-            ultimos.append(f"{nodo['id']} ({nodo['lat']:.5f}, {nodo['lon']:.5f})")
+            if plat == "Unknown" or plon == "Unknown":
+                filas.append(f"{pid} (Unknown, Unknown)")
+            else:
+                filas.append(f"{pid} ({plat:.4f}, {plon:.4f})")
+        return "\n".join(filas) if filas else "—"
 
-        # Primeras y últimas 3 grullas
-        primeras_grullas = []
-        for j in range(al.size(sub["primeros_3_grullas"])):
-            gid = al.get_element(sub["primeros_3_grullas"], j)
-            primeras_grullas.append(str(gid))
+    def fmt_grullas(lista_grullas):
+        """
+        lista_grullas: array_list con IDs de grullas
+        """
+        elems = lista_grullas["elements"]
+        if not elems:
+            return "—"
+        return "\n".join(str(g) for g in elems)
 
-        ultimas_grullas = []
-        for j in range(al.size(sub["ultimos_3_grullas"])):
-            gid = al.get_element(sub["ultimos_3_grullas"], j)
-            ultimas_grullas.append(str(gid))
-
-        tabla.append([
+    # Construir filas de la tabla
+    for sub in top_subredes["elements"]:
+        fila = [
             sub["subred_id"],
             sub["num_puntos"],
-            sub["lat_min"],
-            sub["lat_max"],
-            sub["lon_min"],
-            sub["lon_max"],
+            fmt_coord(sub["lat_min"]),
+            fmt_coord(sub["lat_max"]),
+            fmt_coord(sub["lon_min"]),
+            fmt_coord(sub["lon_max"]),
             sub["total_individuos"],
-            primeros,
-            ultimos,
-            primeras_grullas,
-            ultimas_grullas
-        ])
+            fmt_points(sub["primeros_3_puntos"]),
+            fmt_points(sub["ultimos_3_puntos"]),
+            fmt_grullas(sub["primeros_3_grullas"]),
+            fmt_grullas(sub["ultimos_3_grullas"])
+        ]
+        tabla.append(fila)
 
-    print("==--- 5 subredes más grandes ---==")
     print(tabulate(tabla, headers=headers, tablefmt="fancy_grid", stralign="center"))
-    print("========================================================== \n")
+    print("==========================================================\n")
 
 
 # Se crea la lógica asociado a la vista
