@@ -110,6 +110,7 @@ def remove(my_heap):
         return None
 
     first_element = al.get_element(my_heap["elements"], 1)
+    saved = pqe.get_value(first_element)
     last_element = al.get_element(my_heap["elements"], my_heap["size"])
 
     al.change_info(my_heap["elements"], 1, last_element)
@@ -119,7 +120,7 @@ def remove(my_heap):
 
     sink(my_heap, 1)
 
-    return pqe.get_value(first_element)
+    return saved
 
 def contains(my_heap, value):
     for i in range(1, my_heap["size"] + 1):

@@ -28,7 +28,11 @@ def load_data(control):
     """
 
     nombre_archivo = str(input("Ingrese el nombre del archivo de datos (Ejemplo: '1000_cranes_mongolia_small.csv'): \n"))
-    catalog,tiempo_ms,total_grullas,total_eventos,total_nodos,total_arcos_distance,total_arcos_water,primeros_5,ultimos_5 = l.load_data(control,nombre_archivo)
+
+    if nombre_archivo is not "":
+        catalog,tiempo_ms,total_grullas,total_eventos,total_nodos,total_arcos_distance,total_arcos_water,primeros_5,ultimos_5 = l.load_data(control,nombre_archivo)
+    else:
+        catalog,tiempo_ms,total_grullas,total_eventos,total_nodos,total_arcos_distance,total_arcos_water,primeros_5,ultimos_5 = l.load_data(control)
 
     headers = ["Identificador Único","Posición","Fecha de creación","Grullas (tags)","Conteo","Prom. dist. agua (km)"]
 
@@ -293,7 +297,48 @@ def print_req_4(control):
         Función que imprime la solución del Requerimiento 4 en consola
     """
     # TODO: Imprimir el resultado del requerimiento 4
-    pass
+
+    lat = float(input("Ingrese la latitud del punto de interés: "))
+    lon = float(input("Ingrese la longitud del punto de interés: "))
+
+    total_puntos, total_inviduos, total_distancia, primeros_5, ultimos_5, cercania, tiempo_ms = l.req_4(control, lat, lon)
+    headers = ["Identificador Único","Posición","Numero de individuos","Primeras tres grullas","Ultimas tres grullas","Distancia al punto anterior (km)","Distancia al siguiente punto (km)"]
+    tabla_primeros = []
+    tabla_ultimos = []
+
+    for i in primeros_5["elements"]:
+        tabla_primeros.append([i['id'],
+                              (i['lat'], i['lon']),
+                              i['num_individuals'],
+                              i['first_3_tags']["elements"],
+                              i['last_3_tags']["elements"],
+                              i['distance_to_next']])
+        
+    for i in ultimos_5["elements"]:
+        tabla_ultimos.append([i['id'],
+                              (i['lat'], i['lon']),
+                              i['num_individuals'],
+                              i['first_3_tags']["elements"],
+                              i['last_3_tags']["elements"],
+                              i['distance_to_next']])
+        
+    print("==========================================================")
+    print("                      Requerimiento 4                     ")
+    print("==========================================================")
+    print("==--- Información cargada ---==")
+    print("Total de puntos conectados en el MST: ", total_puntos)
+    print("Total de individuos conectados en el MST: ", total_inviduos)
+    print("Distancia total del MST (km): ", total_distancia)
+    print("Cercanía del punto de interés al nodo más cercano (km): ", cercania)
+    print("Tiempo [ms]: ", tiempo_ms)
+    print("========================================================== \n")
+    print("==--- Primeros 5 elementos del catálogo ---==")
+    print(tabulate(tabla_primeros, headers=headers, tablefmt="fancy_grid", stralign="center"))
+    print("========================================================== \n")
+    print("==--- Últimos 5 elementos del catálogo ---==")
+    print(tabulate(tabla_ultimos, headers=headers, tablefmt="fancy_grid", stralign="center"))
+    print("========================================================== \n")
+    print()
 
 
 def print_req_5(control):

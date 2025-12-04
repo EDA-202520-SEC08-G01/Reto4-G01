@@ -9,7 +9,10 @@ from DataStructures.Graph import dijsktra as djk
 from DataStructures.List import single_linked_list as lt
 from DataStructures.Graph import dfo as dfo
 from DataStructures.Graph import bfs as bfs
+from DataStructures.Graph import dfs as dfs
 from DataStructures.Stack import stack as st
+from DataStructures.Graph import edge as edg
+from DataStructures.Graph import prim as prim
 
 def haversine(lat1, lon1, lat2, lon2):
     """
@@ -159,7 +162,7 @@ def new_logic():
 
 # Funciones para la carga de datos
 
-def load_data(catalog, filename):
+def load_data(catalog, filename='1000_cranes_mongolia_small.csv'):
     start = get_time()
     events = catalog["events"]
     tags_map = catalog["tags"]
@@ -426,26 +429,34 @@ def req_1(catalog, migr_origin, migr_dest):
 
     start = get_time()
     graph = catalog["graph_distance"]
-    structure = djk.dijsktra(graph, migr_origin)
+    structure = dfs.dfs(graph, migr_origin)
 
-    if not djk.has_path_to(migr_dest, structure):
+    if not dfs.has_path_to(migr_dest, structure):
         end = get_time()
         tiempo_ms = delta_time(start, end)
-        return (
-            al.new_list(),   
-            math.inf,        
-            0,              
-            al.new_list(),   
-            al.new_list(),   
-            tiempo_ms
-        )
+        return {
+            "mensaje": f"No se encontró un camino viable entre {migr_origin} y {migr_dest}.",
+            "distancia_total": "Unknown",
+            "total_puntos": 0,
+            "primeros_5": al.new_list(),
+            "ultimos_5": al.new_list(),
+            "tiempo_ms": tiempo_ms
+        }
     
-    path = djk.path_to(migr_dest, structure)
-    total_dist = djk.dist_to(migr_dest, structure["visited"])
+    path = dfs.path_to(migr_dest, structure)
 
     path_al = al.new_list()
     for i in range(lt.size(path)):
         al.add_last(path_al, lt.get_element(path, i)["info"])
+
+    total_dist = 0.0
+    num_vertices = al.size(path_al)
+    for i in range(num_vertices - 1):
+        u = al.get_element(path_al, i)
+        v = al.get_element(path_al, i + 1)
+        edge = dg.get_edge(graph, u, v)
+        if edge is not None:
+            total_dist += edg.weight(edge)
 
     i_primeros_5 = al.new_list()
     i_ultimos_5 = al.new_list()
@@ -719,11 +730,26 @@ def req_3(catalog):
         tiempo_ms
     )
 
-def req_4(catalog):
+def req_4(catalog, lat, lon):
     """
     Retorna el resultado del requerimiento 4
     """
     # TODO: Modificar el requerimiento 4
+    start = get_time()
+    origin, cercania = find_closest_node(catalog, lat, lon)
+    visited_map = prim.prim_mst(catalog["graph_water"], origin)
+    vertices_mst = mp.key_set(visited_map)
+    total_puntos = al.size(vertices_mst)
+    total_distancia = prim.weight_mst(catalog["graph_water"], visited_map)
+    total_inviduos = al.size(catalog["tags"])
+    primeros_5, ultimos_5 = get_first_last_nodes(catalog, vertices_mst, catalog["graph_water"])
+    
+    end = get_time()
+    tiempo_ms = delta_time(start, end)
+
+    return total_puntos, total_inviduos, total_distancia, primeros_5, ultimos_5, cercania, tiempo_ms
+
+
     pass
 
 
