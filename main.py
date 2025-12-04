@@ -1,8 +1,10 @@
+import sys
 import App.view as view
 
 
 # Main function
 def main():
+    sys.setrecursionlimit(10000)
     view.main()
 
 
