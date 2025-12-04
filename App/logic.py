@@ -63,9 +63,7 @@ def get_first_last_nodes(catalog, path_list, graph):
     if total_nodes == 0:
         return first_5, last_5
 
-    # -------------------------------------
-    # PROCESAR PRIMEROS 5 NODOS DEL CAMINO
-    # -------------------------------------
+    # primeros 5
     limit_first = min(5, total_nodes)
 
     for i in range(limit_first):
@@ -89,9 +87,7 @@ def get_first_last_nodes(catalog, path_list, graph):
         tags = node["tags"]
         n_tags = al.size(tags)
 
-        # --------------------------------
-        # PRIMERAS 3 TAGS usando TAD
-        # --------------------------------
+        # primeros y ultimos 3 tags
         first_3_tags = al.new_list()
         limit_3_first = min(3, n_tags)
 
@@ -101,14 +97,11 @@ def get_first_last_nodes(catalog, path_list, graph):
         if al.size(first_3_tags) == 0:
             al.add_last(first_3_tags, "Desconocido")
 
-        # --------------------------------
-        # ÚLTIMAS 3 TAGS usando TAD
-        # --------------------------------
         last_3_tags = al.new_list()
         limit_3_last = min(3, n_tags)
         start_last = n_tags - limit_3_last
 
-        # Evitar negativos por seguridad
+        # Evitar negativos 
         if start_last < 0:
             start_last = 0
 
@@ -118,9 +111,7 @@ def get_first_last_nodes(catalog, path_list, graph):
         if al.size(last_3_tags) == 0:
             al.add_last(last_3_tags, "Desconocido")
 
-        # -------------------------------------------
-        # REGISTRO FINAL DEL NODO (permitido usar dict)
-        # -------------------------------------------
+
         node_info = {
             "id": node_id,
             "lat": node["lat"],
@@ -133,9 +124,7 @@ def get_first_last_nodes(catalog, path_list, graph):
 
         al.add_last(first_5, node_info)
 
-    # ------------------------------
-    # PROCESAR ÚLTIMOS 5 NODOS
-    # ------------------------------
+    # ultimos 5
     limit_last = min(5, total_nodes)
     start_last_section = total_nodes - limit_last
 
