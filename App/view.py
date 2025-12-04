@@ -274,7 +274,7 @@ def print_req_3(control):
                               i['distancia_siguiente']])
 
     print("==========================================================")
-    print("                      Requerimiento 1                     ")
+    print("                      Requerimiento 3                     ")
     print("==========================================================")
 
     print("==--- Información cargada ---==")
