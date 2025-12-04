@@ -7,7 +7,8 @@ from DataStructures.List import array_list as al
 from DataStructures.Graph import prim_structure as pst
 
 def prim_mst(my_graph, source):
-    
+
+    # Normalizar llaves a string
     source = str(source)
 
     g_order = dg.order(my_graph)
@@ -30,10 +31,9 @@ def prim_mst(my_graph, source):
         v = str(pq.del_min(prim["pq"]))
         mp.put(prim["marked"], v, True)
 
-        # obtener vértice real del grafo
         v_obj = dg.get_vertex(my_graph, v)
 
-        # si v no existe en el grafo → NO procesamos adyacentes (sin continue)
+        # Si el vértice no existe, no procesamos adyacentes (sin continue)
         if v_obj is not None:
 
             adj_map = vt.get_adjacents(v_obj)
@@ -46,7 +46,7 @@ def prim_mst(my_graph, source):
 
                 marked_w = mp.get(prim["marked"], w)
 
-                # relajación SOLO si aún no está marcado
+                # Relajación solo si NO está marcado
                 if marked_w is False:
                     old_dist = mp.get(prim["dist_to"], w)
 
@@ -56,3 +56,40 @@ def prim_mst(my_graph, source):
                         pq.insert(prim["pq"], w, weight)
 
     return prim
+
+def edges_mst(my_graph, aux_structure):
+
+    edges_list = al.new_list()
+    keys = mp.key_set(aux_structure["edge_from"])
+
+    for i in range(al.size(keys)):
+        v = str(al.get_element(keys, i))
+        u = mp.get(aux_structure["edge_from"], v)
+
+        if u is not None:
+            dist = mp.get(aux_structure["dist_to"], v)
+
+            arco = {
+                "edge_from": u,
+                "to": v,
+                "dist_to": dist
+            }
+
+            al.add_last(edges_list, arco)
+
+    return edges_list
+
+def weight_mst(my_graph, aux_structure):
+
+    total = 0
+    keys = mp.key_set(aux_structure["dist_to"])
+
+    for i in range(al.size(keys)):
+        v = str(al.get_element(keys, i))
+        dist = mp.get(aux_structure["dist_to"], v)
+
+        if dist < float("inf"):
+            total += dist
+
+    return total
+
