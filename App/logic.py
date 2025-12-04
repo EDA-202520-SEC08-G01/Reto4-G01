@@ -195,7 +195,6 @@ def get_first_last_nodes(catalog, path_list, graph):
     return first_5, last_5
 
 
-
 def cmp_events_by_timestamp(e1, e2):
     return e1["timestamp"] < e2["timestamp"]
 
@@ -288,18 +287,13 @@ def load_data(catalog, filename='1000_cranes_mongolia_small.csv'):
         j = 0
         total_nodes = al.size(nodes_list)
 
-        # NO HAY break: se detiene solo al encontrar nodo válido
+        # se detiene solo al encontrar nodo válido
         while j < total_nodes and nodo_encontrado is None:
             node = al.get_element(nodes_list, j)
 
-            dt_hours = abs(
-                (ev_time - node["creation_timestamp"]).total_seconds()
-            ) / 3600.0
+            dt_hours = abs((ev_time - node["creation_timestamp"]).total_seconds()) / 3600.0
 
-            d_km = haversine(
-                node["lat"], node["lon"],
-                ev_lat, ev_lon
-            )
+            d_km = haversine(node["lat"], node["lon"], ev_lat, ev_lon)
 
             if d_km < 3.0 and dt_hours < 3.0:
                 nodo_encontrado = node
@@ -312,7 +306,7 @@ def load_data(catalog, filename='1000_cranes_mongolia_small.csv'):
             al.add_last(nodo_encontrado["events"], ev)
             nodo_encontrado["events_count"] += 1
 
-            # Agregar tag si no existe (sin break)
+            # Agregar tag si no existe
             tags_list = nodo_encontrado["tags"]
             found = False
             k = 0
@@ -329,9 +323,7 @@ def load_data(catalog, filename='1000_cranes_mongolia_small.csv'):
             # Actualizar promedio distancia al agua
             c = nodo_encontrado["events_count"]
             old_avg = nodo_encontrado["prom_distancia_agua"]
-            nodo_encontrado["prom_distancia_agua"] = (
-                old_avg * (c - 1) + ev_dist_agua
-            ) / c
+            nodo_encontrado["prom_distancia_agua"] = (old_avg * (c - 1) + ev_dist_agua) / c
 
             mp.put(event_to_node, ev_id, nodo_encontrado["id"])
 
@@ -384,10 +376,7 @@ def load_data(catalog, filename='1000_cranes_mongolia_small.csv'):
             node_curr = mp.get(nodes_by_id, node_id)
 
             if node_id != prev_node_id:
-                d_km = haversine(
-                    node_prev["lat"], node_prev["lon"],
-                    node_curr["lat"], node_curr["lon"]
-                )
+                d_km = haversine(node_prev["lat"], node_prev["lon"], node_curr["lat"], node_curr["lon"])
 
                 # Grafo de distancia
                 sub = mp.get(dist_migratoria, prev_node_id)
