@@ -35,26 +35,30 @@ def find_closest_node(catalog, lat, lon):
 
     Si no hay nodos, devuelve (None, math.inf).
     """
-    nodes_list = catalog["nodes"]
+    nodes_map = catalog["nodes_by_id"]
+    keys = mp.key_set(nodes_map)  # AL con todas las llaves del map
 
-    n = al.size(nodes_list)
-    if n == 0:
-        return None, math.inf
-
-    closest_id = None
     min_dist = math.inf
+    closest_id = None
 
-    for i in range(n):
-        node = al.get_element(nodes_list, i)
-        node_lat = node["lat"]
-        node_lon = node["lon"]
-        d = haversine(lat, lon, node_lat, node_lon)
+    total = al.size(keys)
+    for i in range(total):
+        node_id = al.get_element(keys, i)
+        node = mp.get(nodes_map, node_id)
+
+        if node is None:
+            continue
+
+        if "lat" not in node or "lon" not in node:
+            continue
+
+        d = haversine(lat, lon, node["lat"], node["lon"])
+
         if d < min_dist:
             min_dist = d
-            closest_id = node["id"]
+            closest_id = node_id
 
     return closest_id, min_dist
-
 def get_first_last_nodes(catalog, path_list, graph):
     """
     Extrae los primeros 5 y últimos 5 nodos de un camino con información detallada.
@@ -759,12 +763,155 @@ def req_4(catalog, lat, lon):
 
     return total_puntos, total_inviduos, total_distancia, primeros_5, ultimos_5, cercania, tiempo_ms
 
-def req_5(catalog):
+def req_5(catalog, lat_origin, lon_origin, lat_dest, lon_dest, tipo_grafo):
     """
     Retorna el resultado del requerimiento 5
     """
     # TODO: Modificar el requerimiento 5
-    pass
+    start = get_time()
+
+    # 1. Escoger grafo según selección del usuario
+    tipo = str(tipo_grafo).lower().strip()
+    if tipo.startswith("d"):  # 'd', 'dist', 'distancia', '1', etc.
+        graph = catalog["graph_distance"]
+    elif tipo.startswith("a"):  # 'a', 'agua', 'hidrica', '2', etc.
+        graph = catalog["graph_water"]
+    else:
+        # Por defecto, usar grafo de distancia si la entrada es rara
+        graph = catalog["graph_distance"]
+
+    nodes_by_id = catalog["nodes_by_id"]
+
+    # 2. Encontrar nodos de origen y destino más cercanos a las coordenadas
+    origin_node = find_closest_node(catalog, lat_origin, lon_origin)
+    dest_node = find_closest_node(catalog, lat_dest, lon_dest)
+
+    if origin_node is None or dest_node is None:
+        end = get_time()
+        tiempo_ms = delta_time(start, end)
+        return (
+            "Unknown",   # origin_id
+            "Unknown",   # dest_id
+            0.0,         # total_cost
+            0,           # num_vertices
+            0,           # num_arcos
+            al.new_list(),  # path_ids
+            al.new_list(),  # segment_costs
+            al.new_list(),  # primeros_5_nodes
+            al.new_list(),  # ultimos_5_nodes
+            tiempo_ms
+        )
+
+    origin_id = origin_node["id"]
+    dest_id = dest_node["id"]
+
+    # 3. Ejecutar Dijkstra desde el nodo de origen en el grafo seleccionado
+    structure = djk.dijsktra(graph, origin_id)
+
+    # Si no hay camino al destino
+    if not djk.has_path_to(dest_id, structure):
+        end = get_time()
+        tiempo_ms = delta_time(start, end)
+        return (
+            origin_id,
+            dest_id,
+            0.0,
+            0,
+            0,
+            al.new_list(),
+            al.new_list(),
+            al.new_list(),
+            al.new_list(),
+            tiempo_ms
+        )
+
+    # 4. Reconstruir el camino (pila de vértices) y pasarlo a ARRAY_LIST de ids
+    stack_path = djk.path_to(dest_id, structure)
+    if stack_path is None:
+        end = get_time()
+        tiempo_ms = delta_time(start, end)
+        return (
+            origin_id,
+            dest_id,
+            0.0,
+            0,
+            0,
+            al.new_list(),
+            al.new_list(),
+            al.new_list(),
+            al.new_list(),
+            tiempo_ms
+        )
+
+    path_ids = al.new_list()
+    n = lt.size(stack_path)
+
+    for i in range(n):
+        elem = lt.get_element(stack_path, i)
+        # Stack suele guardar nodos tipo {"info": id}, por si acaso chequeamos
+        if isinstance(elem, dict) and "info" in elem:
+            node_id = elem["info"]
+        else:
+            node_id = elem
+        al.add_last(path_ids, node_id)
+
+    num_vertices = n
+    num_arcos = max(0, num_vertices - 1)
+
+    # 5. Costo total desde Dijkstra
+    total_cost = djk.dist_to(dest_id, structure["visited"])
+
+    # 6. Costo por segmento (al siguiente vértice) según el grafo
+    segment_costs = al.new_list()
+    for i in range(num_vertices):
+        if i < num_vertices - 1:
+            u = al.get_element(path_ids, i)
+            v = al.get_element(path_ids, i + 1)
+            edge = dg.get_edge(graph, u, v)
+            if edge is not None:
+                cost = edg.weight(edge)
+            else:
+                cost = 0.0
+        else:
+            # Último nodo no tiene siguiente
+            cost = 0.0
+        al.add_last(segment_costs, cost)
+
+    # 7. Construir listas de primeros y últimos 5 nodos (dicts completos)
+    primeros_5_nodes = al.new_list()
+    ultimos_5_nodes = al.new_list()
+
+    if num_vertices > 0:
+        # Primeros 5
+        limite = min(5, num_vertices)
+        for i in range(limite):
+            node_id = al.get_element(path_ids, i)
+            node = mp.get(nodes_by_id, node_id)
+            al.add_last(primeros_5_nodes, node)
+
+        # Últimos 5
+        limite2 = min(5, num_vertices)
+        inicio_ultimos = num_vertices - limite2
+        for i in range(inicio_ultimos, num_vertices):
+            node_id = al.get_element(path_ids, i)
+            node = mp.get(nodes_by_id, node_id)
+            al.add_last(ultimos_5_nodes, node)
+
+    end = get_time()
+    tiempo_ms = delta_time(start, end)
+
+    return (
+        origin_id,
+        dest_id,
+        total_cost,
+        num_vertices,
+        num_arcos,
+        path_ids,
+        segment_costs,
+        primeros_5_nodes,
+        ultimos_5_nodes,
+        tiempo_ms
+    )
 
 def req_6(catalog):
     start = get_time()
