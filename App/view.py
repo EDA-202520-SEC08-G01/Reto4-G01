@@ -204,7 +204,7 @@ def print_req_1(control):
 
         # costo (distancia) al siguiente nodo
         costo_seg = al.get_element(segment_costs, i)
-        costo_seg_str = f"{costo_seg:.3f}" if i < num_puntos - 1 else "—"
+        costo_seg_str = f"{costo_seg:.3f}" if i < num_puntos - 1 else "Desconocida"
 
         tabla_primeros.append([
             node["id"],
@@ -719,7 +719,7 @@ def print_req_5(control):
 
         # costo al siguiente segmento (según el grafo elegido)
         costo_seg = al.get_element(segment_costs, i)
-        costo_seg_str = f"{costo_seg:.3f}" if i < num_vertices - 1 else "—"
+        costo_seg_str = f"{costo_seg:.3f}" if i < num_vertices - 1 else "Desconocida"
 
         tabla_primeros.append([
             node["id"],
@@ -745,7 +745,7 @@ def print_req_5(control):
             costo_seg = al.get_element(segment_costs, original_index)
             costo_seg_str = f"{costo_seg:.3f}"
         else:
-            costo_seg_str = "—"
+            costo_seg_str = "Desconocida"
 
         tabla_ultimos.append([
             node["id"],

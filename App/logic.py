@@ -288,7 +288,6 @@ def load_data(catalog, filename='1000_cranes_mongolia_small.csv'):
         j = 0
         total_nodes = al.size(nodes_list)
 
-        # NO HAY break: se detiene solo al encontrar nodo válido
         while j < total_nodes and nodo_encontrado is None:
             node = al.get_element(nodes_list, j)
 
@@ -892,118 +891,214 @@ def req_3(catalog):
         tiempo_ms
     )
 
-def req_4(catalog, lat, lon):
+def req_4(catalog, lat_origin, lon_origin):
     """
     Retorna el resultado del requerimiento 4
     """
     # TODO: Modificar el requerimiento 4
     
     start = get_time()
-    graph = catalog["graph_water"]
-    nodes_by_id = catalog["nodes_by_id"]
-
-    # 1. Encontrar el nodo del grafo hídrico más cercano a (lat, lon)
-    verts = dg.vertices(graph)  # array_list con IDs de nodos del grafo hídrico
-    num_verts = al.size(verts)
-
-    if num_verts == 0:
+    
+    # 1. Encontrar nodo de origen más cercano a las coordenadas
+    origin_node = find_closest_node(catalog, lat_origin, lon_origin)
+    
+    if origin_node is None:
         end = get_time()
-        tiempo_ms = delta_time(start, end)
         return (
-            0,                  # total_puntos
-            0,                  # total_individuos
-            0.0,                # distancia_total_corredor
-            al.new_list(),      # primeros_5
-            al.new_list(),      # ultimos_5
-            "Unknown",          # distancia_gps_origen
-            tiempo_ms
-        )
-
-    best_id = None
-    best_dist = math.inf
-
-    for i in range(num_verts):
-        nid = al.get_element(verts, i)
-        node = mp.get(nodes_by_id, nid)
-        if node is None:
-            continue
-
-        d = haversine(lat, lon, node["lat"], node["lon"])
-        if d < best_dist:
-            best_dist = d
-            best_id = nid
-
-    if best_id is None:
-        end = get_time()
-        tiempo_ms = delta_time(start, end)
-        return (
-            0,
-            0,
-            0.0,
-            al.new_list(),
-            al.new_list(),
             "Unknown",
-            tiempo_ms
-        )
-
-    origin_id = best_id
-
-    # 2. Ejecutar Prim sobre el grafo hídrico desde origin_id
-    visited_map = prim.prim_mst(graph, origin_id)
-
-    if visited_map is None or mp.size(visited_map) == 0:
-        end = get_time()
-        tiempo_ms = delta_time(start, end)
-        return (
             0,
             0,
             0.0,
             al.new_list(),
             al.new_list(),
-            best_dist,
-            tiempo_ms
+            delta_time(start, end)
         )
-
-    # 3. Lista de vértices que pertenecen al MST
-    vertices_mst = mp.key_set(visited_map)     # array_list de IDs
-    total_puntos = al.size(vertices_mst)
-
-    # 4. Distancia total del corredor hídrico (suma de pesos del MST)
-    total_distancia = prim.weight_mst(graph, visited_map)
-
-    # 5. Total de individuos (grullas) que usan la ruta migratoria (sin usar set())
-    individuos_map = mp.new_map(total_puntos * 5 + 1, 0.7)  # mapa grulla_id -> True
-
+    
+    # IMPORTANTE: Convertir a string para evitar problemas de tipos
+    origin_id = str(origin_node["id"])
+    graph = catalog["graph_water"]  # Usar grafo hídrico
+    nodes_by_id = catalog["nodes_by_id"]
+    
+    # 2. Verificar que el vértice existe en el grafo
+    if not dg.contains_vertex(graph, origin_id):
+        end = get_time()
+        return (
+            origin_id,
+            0,
+            0,
+            0.0,
+            al.new_list(),
+            al.new_list(),
+            delta_time(start, end)
+        )
+    
+    # 3. Ejecutar Prim desde el origen
+    prim_structure = prim.prim_mst(graph, origin_id)
+    
+    # 4. Obtener los vértices que pertenecen al MST
+    # Un vértice está en el MST si su distancia es < infinito
+    mst_vertices = al.new_list()
+    keys_dist = mp.key_set(prim_structure["dist_to"])
+    
+    for i in range(al.size(keys_dist)):
+        vertex_id = al.get_element(keys_dist, i)
+        # Convertir a string por consistencia
+        vertex_id = str(vertex_id)
+        dist = mp.get(prim_structure["dist_to"], vertex_id)
+        
+        # Solo incluir vértices alcanzables (distancia < infinito)
+        if dist is not None and dist < float("inf"):
+            al.add_last(mst_vertices, vertex_id)
+    
+    total_puntos = al.size(mst_vertices)
+    
+    # Si no hay puntos en el MST
+    if total_puntos == 0:
+        end = get_time()
+        return (
+            origin_id,
+            0,
+            0,
+            0.0,
+            al.new_list(),
+            al.new_list(),
+            delta_time(start, end)
+        )
+    
+    # 5. Calcular peso total del MST (distancia total a fuentes hídricas)
+    total_dist_hidrica = prim.weight_mst(graph, prim_structure)
+    
+    # 6. Contar individuos únicos (grullas) que usan el corredor
+    individuos_map = mp.new_map(total_puntos * 4, 0.7)
+    
     for i in range(total_puntos):
-        nid = al.get_element(vertices_mst, i)
-        node = mp.get(nodes_by_id, nid)
+        vertex_id = al.get_element(mst_vertices, i)
+        node = mp.get(nodes_by_id, vertex_id)
+        
         if node is None:
             continue
-
-        tags_list = node["tags"]
-        n_tags = al.size(tags_list)
-
-        for j in range(n_tags):
-            grulla_id = al.get_element(tags_list, j)
-            # solo contamos si no está ya en el mapa
-            if not mp.contains(individuos_map, grulla_id):
-                mp.put(individuos_map, grulla_id, True)
-
+        
+        tags = node["tags"]
+        num_tags = al.size(tags)
+        
+        for j in range(num_tags):
+            tag = al.get_element(tags, j)
+            # Convertir tag a string para evitar problemas de comparación
+            tag_str = str(tag)
+            if not mp.contains(individuos_map, tag_str):
+                mp.put(individuos_map, tag_str, True)
+    
     total_individuos = mp.size(individuos_map)
-
-    # 6. Primeros y últimos 5 puntos del corredor hídrico (con info detallada)
-    primeros_5, ultimos_5 = get_first_last_nodes(catalog, vertices_mst, graph)
-
+    
+    # 7. Obtener primeros 5 y últimos 5 nodos con información detallada
+    primeros_5 = al.new_list()
+    ultimos_5 = al.new_list()
+    
+    if total_puntos > 0:
+        # Primeros 5
+        limit_first = min(5, total_puntos)
+        for i in range(limit_first):
+            vertex_id = al.get_element(mst_vertices, i)
+            node = mp.get(nodes_by_id, vertex_id)
+            
+            if node is None:
+                continue
+            
+            # Obtener tags
+            tags = node["tags"]
+            num_tags = al.size(tags)
+            
+            # Primeros 3 tags
+            first_3_tags = al.new_list()
+            for j in range(min(3, num_tags)):
+                al.add_last(first_3_tags, al.get_element(tags, j))
+            
+            if al.size(first_3_tags) == 0:
+                al.add_last(first_3_tags, "Desconocido")
+            
+            # Últimos 3 tags
+            last_3_tags = al.new_list()
+            if num_tags <= 3:
+                # Si hay 3 o menos, copiar los primeros
+                for j in range(num_tags):
+                    al.add_last(last_3_tags, al.get_element(tags, j))
+            else:
+                # Tomar los últimos 3
+                start_idx = num_tags - 3
+                for j in range(start_idx, num_tags):
+                    al.add_last(last_3_tags, al.get_element(tags, j))
+            
+            if al.size(last_3_tags) == 0:
+                al.add_last(last_3_tags, "Desconocido")
+            
+            node_info = {
+                "id": vertex_id,
+                "lat": node.get("lat", "Unknown"),
+                "lon": node.get("lon", "Unknown"),
+                "num_individuals": num_tags,
+                "first_3_tags": first_3_tags,
+                "last_3_tags": last_3_tags
+            }
+            
+            al.add_last(primeros_5, node_info)
+        
+        # Últimos 5
+        limit_last = min(5, total_puntos)
+        start_last = total_puntos - limit_last
+        
+        for i in range(start_last, total_puntos):
+            vertex_id = al.get_element(mst_vertices, i)
+            node = mp.get(nodes_by_id, vertex_id)
+            
+            if node is None:
+                continue
+            
+            # Obtener tags
+            tags = node["tags"]
+            num_tags = al.size(tags)
+            
+            # Primeros 3 tags
+            first_3_tags = al.new_list()
+            for j in range(min(3, num_tags)):
+                al.add_last(first_3_tags, al.get_element(tags, j))
+            
+            if al.size(first_3_tags) == 0:
+                al.add_last(first_3_tags, "Desconocido")
+            
+            # Últimos 3 tags
+            last_3_tags = al.new_list()
+            if num_tags <= 3:
+                for j in range(num_tags):
+                    al.add_last(last_3_tags, al.get_element(tags, j))
+            else:
+                start_idx = num_tags - 3
+                for j in range(start_idx, num_tags):
+                    al.add_last(last_3_tags, al.get_element(tags, j))
+            
+            if al.size(last_3_tags) == 0:
+                al.add_last(last_3_tags, "Desconocido")
+            
+            node_info = {
+                "id": vertex_id,
+                "lat": node.get("lat", "Unknown"),
+                "lon": node.get("lon", "Unknown"),
+                "num_individuals": num_tags,
+                "first_3_tags": first_3_tags,
+                "last_3_tags": last_3_tags
+            }
+            
+            al.add_last(ultimos_5, node_info)
+    
     end = get_time()
     tiempo_ms = delta_time(start, end)
-
+    
     return (
-        total_puntos,       # número de puntos del corredor
-        total_individuos,   # número total de individuos en el corredor
-        total_distancia,    # distancia total del corredor (suma pesos MST)
-        primeros_5,         # primeros 5 vértices (con info)
-        ultimos_5,          # últimos 5 vértices (con info)
-        best_dist,          # distancia GPS -> nodo de origen más cercano
+        origin_id,
+        total_puntos,
+        total_individuos,
+        total_dist_hidrica,
+        primeros_5,
+        ultimos_5,
         tiempo_ms
     )
 
