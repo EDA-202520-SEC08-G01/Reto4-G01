@@ -28,7 +28,6 @@ def haversine(lat1, lon1, lat2, lon2):
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
     return R * c
 
-<<<<<<< HEAD
 def find_closest_node(catalog, lat, lon):
     """
     Encuentra el nodo más cercano a una coordenada GPS dada.
@@ -140,8 +139,7 @@ def get_first_last_nodes(catalog, path_list, graph):
             al.add_last(last_5, node_info)
     
     return first_5, last_5
-=======
->>>>>>> 64d95a4756bb9ad936316fa8b7b2efad6cdceb41
+
 
 def cmp_events_by_timestamp(e1, e2):
     return e1["timestamp"] < e2["timestamp"]
