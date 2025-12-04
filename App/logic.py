@@ -63,18 +63,10 @@ def get_first_last_nodes(catalog, path_list, graph):
     if total_nodes == 0:
         return first_5, last_5
 
-    # ------------------------------
-    # FUNCIÓN AUXILIAR: min(a, b)
-    # ------------------------------
-    def tad_min(a, b):
-        if a < b:
-            return a
-        return b
-
     # -------------------------------------
     # PROCESAR PRIMEROS 5 NODOS DEL CAMINO
     # -------------------------------------
-    limit_first = tad_min(5, total_nodes)
+    limit_first = min(5, total_nodes)
 
     for i in range(limit_first):
 
@@ -101,7 +93,7 @@ def get_first_last_nodes(catalog, path_list, graph):
         # PRIMERAS 3 TAGS usando TAD
         # --------------------------------
         first_3_tags = al.new_list()
-        limit_3_first = tad_min(3, n_tags)
+        limit_3_first = min(3, n_tags)
 
         for j in range(limit_3_first):
             al.add_last(first_3_tags, al.get_element(tags, j))
@@ -113,7 +105,7 @@ def get_first_last_nodes(catalog, path_list, graph):
         # ÚLTIMAS 3 TAGS usando TAD
         # --------------------------------
         last_3_tags = al.new_list()
-        limit_3_last = tad_min(3, n_tags)
+        limit_3_last = min(3, n_tags)
         start_last = n_tags - limit_3_last
 
         # Evitar negativos por seguridad
@@ -144,7 +136,7 @@ def get_first_last_nodes(catalog, path_list, graph):
     # ------------------------------
     # PROCESAR ÚLTIMOS 5 NODOS
     # ------------------------------
-    limit_last = tad_min(5, total_nodes)
+    limit_last = min(5, total_nodes)
     start_last_section = total_nodes - limit_last
 
     for i in range(start_last_section, total_nodes):
@@ -167,7 +159,7 @@ def get_first_last_nodes(catalog, path_list, graph):
         n_tags = al.size(tags)
 
         first_3_tags = al.new_list()
-        limit_3_first = tad_min(3, n_tags)
+        limit_3_first = min(3, n_tags)
 
         for j in range(limit_3_first):
             al.add_last(first_3_tags, al.get_element(tags, j))
@@ -176,7 +168,7 @@ def get_first_last_nodes(catalog, path_list, graph):
             al.add_last(first_3_tags, "Desconocido")
 
         last_3_tags = al.new_list()
-        limit_3_last = tad_min(3, n_tags)
+        limit_3_last = min(3, n_tags)
         start_last_tags = n_tags - limit_3_last
 
         if start_last_tags < 0:
