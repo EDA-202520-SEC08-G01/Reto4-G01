@@ -30,25 +30,30 @@ def haversine(lat1, lon1, lat2, lon2):
 
 def find_closest_node(catalog, lat, lon):
     """
-    Encuentra el nodo más cercano a una coordenada GPS dada.
-    Retorna el ID del nodo más cercano.
+    Dado un catálogo y una posición (lat, lon),
+    devuelve (id_nodo_más_cercano, distancia_en_km).
+
+    Si no hay nodos, devuelve (None, math.inf).
     """
     nodes_list = catalog["nodes"]
-    min_distance = float('inf')
-    closest_node_id = None
-    
-    for i in range(al.size(nodes_list)):
+
+    n = al.size(nodes_list)
+    if n == 0:
+        return None, math.inf
+
+    closest_id = None
+    min_dist = math.inf
+
+    for i in range(n):
         node = al.get_element(nodes_list, i)
         node_lat = node["lat"]
         node_lon = node["lon"]
-        
-        distance = haversine(lat, lon, node_lat, node_lon)
-        
-        if distance < min_distance:
-            min_distance = distance
-            closest_node_id = node["id"]
-    
-    return closest_node_id, min_distance
+        d = haversine(lat, lon, node_lat, node_lon)
+        if d < min_dist:
+            min_dist = d
+            closest_id = node["id"]
+
+    return closest_id, min_dist
 
 def get_first_last_nodes(catalog, path_list, graph):
     """
@@ -587,7 +592,6 @@ def req_2(catalog, origin_lat, origin_lon, dest_lat, dest_lon, radius_km):
         "last_5": last_5,
         "time_ms": delta_time(start, end)
     }
-    pass
 
 
 def req_3(catalog):
@@ -730,47 +734,6 @@ def req_3(catalog):
         ultimos_5,
         tiempo_ms
     )
-def find_closest_node(catalog, lat, lon):
-    """
-    Encuentra el nodo más cercano a una coordenada GPS dada.
-    Retorna el ID del nodo más cercano.
-    """
-    nodes_list = catalog["nodes"]
-    best_node = None
-    best_dist = math.inf
-
-    n = al.size(nodes_list)
-    for i in range(n):
-        node = al.get_element(nodes_list, i)
-        d = haversine(lat, lon, node["lat"], node["lon"])
-        if d < best_dist:
-            best_dist = d
-            best_node = node
-
-    return best_node
-
-def get_first_last_nodes(catalog, vertices_mst, graph):
-    primeros_5 = al.new_list()
-    ultimos_5 = al.new_list()
-    total_nodos = al.size(vertices_mst)
-
-    if total_nodos > 0:
-        limite = min(5, total_nodos)
-        for i in range(limite):
-            node_id = al.get_element(vertices_mst, i)
-            node = dg.get_vertex(graph, node_id)
-            if node is not None:
-                al.add_last(primeros_5, node["info"])
-
-        limite2 = min(5, total_nodos)
-        inicio_ultimos = total_nodos - limite2
-        for i in range(inicio_ultimos, total_nodos):
-            node_id = al.get_element(vertices_mst, i)
-            node = dg.get_vertex(graph, node_id)
-            if node is not None:
-                al.add_last(ultimos_5, node["info"])
-
-    return primeros_5, ultimos_5
 
 def req_4(catalog, lat, lon):
     """
@@ -791,10 +754,6 @@ def req_4(catalog, lat, lon):
     tiempo_ms = delta_time(start, end)
 
     return total_puntos, total_inviduos, total_distancia, primeros_5, ultimos_5, cercania, tiempo_ms
-
-
-    pass
-
 
 def req_5(catalog):
     """
