@@ -23,7 +23,7 @@ def prim_mst(my_graph, source):
     pq.insert(prim["pq"], source, 0)
 
     while not pq.is_empty(prim["pq"]):
-        v = pq.del_min(prim["pq"])
+        v = pq.remove(prim["pq"])
         mp.put(prim["marked"], v, True)
 
         v_obj = dg.get_vertex(my_graph, v)
