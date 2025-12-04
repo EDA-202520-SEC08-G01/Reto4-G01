@@ -12,7 +12,6 @@ from DataStructures.Graph import bfs as bfs
 from DataStructures.Graph import dfs as dfs
 from DataStructures.Stack import stack as st
 from DataStructures.Graph import edge as edg
-from DataStructures.Graph import prim as prim
 
 def haversine(lat1, lon1, lat2, lon2):
     """
@@ -34,111 +33,19 @@ def find_closest_node(catalog, lat, lon):
     Retorna el ID del nodo más cercano.
     """
     nodes_list = catalog["nodes"]
-    min_distance = float('inf')
-    closest_node_id = None
-    
-    for i in range(al.size(nodes_list)):
+    best_node = None
+    best_dist = math.inf
+
+    n = al.size(nodes_list)
+    for i in range(n):
         node = al.get_element(nodes_list, i)
-        node_lat = node["lat"]
-        node_lon = node["lon"]
-        
-        distance = haversine(lat, lon, node_lat, node_lon)
-        
-        if distance < min_distance:
-            min_distance = distance
-            closest_node_id = node["id"]
-    
-    return closest_node_id, min_distance
+        d = haversine(lat, lon, node["lat"], node["lon"])
+        if d < best_dist:
+            best_dist = d
+            best_node = node
 
-def get_first_last_nodes(catalog, path_list, graph):
-    """
-    Extrae los primeros 5 y últimos 5 nodos de un camino con información detallada.
-    """
-    first_5 = al.new_list()
-    last_5 = al.new_list()
-    total_nodes = al.size(path_list)
-    
-    if total_nodes > 0:
-        # Primeros 5
-        limit_first = min(5, total_nodes)
-        for i in range(limit_first):
-            node_id = al.get_element(path_list, i)
-            node = mp.get(catalog["nodes_by_id"], node_id)
-            
-            # Calcular distancia al siguiente nodo
-            distance_to_next = "Desconocido"
-            if i < total_nodes - 1:
-                next_node_id = al.get_element(path_list, i + 1)
-                edge_weight = dg.get_edge(graph, node_id, next_node_id)
-                if edge_weight is not None:
-                    distance_to_next = round(edge_weight, 3)
-            
-            # Obtener primeros y últimos 3 tags
-            tags = node["tags"]
-            num_tags = al.size(tags)
-            first_3_tags = []
-            last_3_tags = []
-            
-            for j in range(min(3, num_tags)):
-                first_3_tags.append(al.get_element(tags, j))
-            
-            if num_tags > 3:
-                start_last = max(0, num_tags - 3)
-                for j in range(start_last, num_tags):
-                    last_3_tags.append(al.get_element(tags, j))
-            
-            node_info = {
-                "id": node_id,
-                "lat": node["lat"],
-                "lon": node["lon"],
-                "num_individuals": al.size(tags),
-                "first_3_tags": first_3_tags if first_3_tags else ["Desconocido"],
-                "last_3_tags": last_3_tags if last_3_tags else ["Desconocido"],
-                "distance_to_next": distance_to_next
-            }
-            
-            al.add_last(first_5, node_info)
-        
-        # Últimos 5
-        limit_last = min(5, total_nodes)
-        start_last = total_nodes - limit_last
-        for i in range(start_last, total_nodes):
-            node_id = al.get_element(path_list, i)
-            node = mp.get(catalog["nodes_by_id"], node_id)
+    return best_node
 
-            distance_to_next = "Desconocido"
-            if i < total_nodes - 1:
-                next_node_id = al.get_element(path_list, i + 1)
-                edge_weight = dg.get_edge(graph, node_id, next_node_id)
-                if edge_weight is not None:
-                    distance_to_next = round(edge_weight, 3)
-
-            tags = node["tags"]
-            num_tags = al.size(tags)
-            first_3_tags = []
-            last_3_tags = []
-            
-            for j in range(min(3, num_tags)):
-                first_3_tags.append(al.get_element(tags, j))
-            
-            if num_tags > 3:
-                start_last = max(0, num_tags - 3)
-                for j in range(start_last, num_tags):
-                    last_3_tags.append(al.get_element(tags, j))
-            
-            node_info = {
-                "id": node_id,
-                "lat": node["lat"],
-                "lon": node["lon"],
-                "num_individuals": al.size(tags),
-                "first_3_tags": first_3_tags if first_3_tags else ["Desconocido"],
-                "last_3_tags": last_3_tags if last_3_tags else ["Desconocido"],
-                "distance_to_next": distance_to_next
-            }
-            
-            al.add_last(last_5, node_info)
-    
-    return first_5, last_5
 
 def cmp_events_by_timestamp(e1, e2):
     return e1["timestamp"] < e2["timestamp"]
@@ -486,106 +393,126 @@ def req_1(catalog, migr_origin, migr_dest):
 
     return path_al, total_dist, lt.size(path), primeros_5, ultimos_5, tiempo_ms
 
-def req_2(catalog, origin_lat, origin_lon, dest_lat, dest_lon, radius_km):
+def req_2(catalog, lat_origin, lon_origin, lat_dest, lon_dest, radio_km):
     """
     Retorna el resultado del requerimiento 2
     """
     # TODO: Modificar el requerimiento 2
     start = get_time()
-    
-    # Encontrar nodos más cercanos a las coordenadas
-    origin_node_id, origin_dist = find_closest_node(catalog, origin_lat, origin_lon)
-    dest_node_id, dest_dist = find_closest_node(catalog, dest_lat, dest_lon)
-    
-    if origin_node_id is None or dest_node_id is None:
-        end = get_time()
-        return {
-            "path": None,
-            "total_distance": 0,
-            "total_nodes": 0,
-            "last_node_in_area": None,
-            "first_5": al.new_list(),
-            "last_5": al.new_list(),
-            "time_ms": delta_time(start, end),
-            "message": "No se encontraron nodos cercanos a las coordenadas"
-        }
-    
-    # Ejecutar BFS desde el origen
+
     graph = catalog["graph_distance"]
-    search_result = bfs.bfs(graph, origin_node_id)
-    
-    # Verificar si hay camino al destino
-    if not bfs.has_path_to(dest_node_id, search_result):
+    nodes_by_id = catalog["nodes_by_id"]
+
+    # 1. Encontrar nodos de origen y destino más cercanos a las coordenadas
+    origin_node = find_closest_node(catalog, lat_origin, lon_origin)
+    dest_node = find_closest_node(catalog, lat_dest, lon_dest)
+
+    # Si por alguna razón no se encuentran nodos
+    if origin_node is None or dest_node is None:
         end = get_time()
-        return {
-            "path": None,
-            "total_distance": 0,
-            "total_nodes": 0,
-            "last_node_in_area": None,
-            "first_5": al.new_list(),
-            "last_5": al.new_list(),
-            "time_ms": delta_time(start, end),
-            "message": "No existe camino entre los puntos"
-        }
-    
-    # Obtener el camino
-    path_stack = bfs.path_to(dest_node_id, search_result)
-    
-    # Convertir stack a lista
-    path_list = al.new_list()
-    while not st.is_empty(path_stack):
-        node_id = st.pop(path_stack)
-        al.add_last(path_list, node_id)
-    
-    # Obtener nodo de origen para calcular distancias
-    origin_node = mp.get(catalog["nodes_by_id"], origin_node_id)
-    origin_lat_node = origin_node["lat"]
-    origin_lon_node = origin_node["lon"]
-    
-    # Encontrar el último nodo dentro del área de interés
-    last_node_in_area = None
-    for i in range(al.size(path_list)):
-        node_id = al.get_element(path_list, i)
-        node = mp.get(catalog["nodes_by_id"], node_id)
-        
-        distance_from_origin = haversine(
-            origin_lat_node, origin_lon_node,
-            node["lat"], node["lon"]
+        tiempo_ms = delta_time(start, end)
+        return (
+            "Unknown",
+            "Unknown",
+            "Unknown",
+            al.new_list(),
+            0.0,
+            0,
+            al.new_list(),
+            al.new_list(),
+            tiempo_ms
         )
-        
-        if distance_from_origin <= radius_km:
-            last_node_in_area = node_id
-    
-    # Calcular distancia total del camino
-    total_distance = 0.0
-    prev_node_id = None
-    for i in range(al.size(path_list)):
-        node_id = al.get_element(path_list, i)
-        
-        if prev_node_id is not None:
-            edge_weight = dg.get_edge(graph, prev_node_id, node_id)
-            if edge_weight is not None:
-                total_distance += edge_weight
-        
-        prev_node_id = node_id
-    
-    # Obtener primeros y últimos 5 nodos con información detallada
-    first_5, last_5 = get_first_last_nodes(catalog, path_list, graph)
-    
+
+    origin_id = origin_node["id"]
+    dest_id = dest_node["id"]
+
+    # 2. BFS desde el nodo de origen
+    visited = bfs.bfs(graph, origin_id)
+
+    # Si no hay camino al destino
+    if not bfs.has_path_to(dest_id, visited):
+        end = get_time()
+        tiempo_ms = delta_time(start, end)
+        return (
+            origin_id,
+            dest_id,
+            "Unknown",
+            al.new_list(),
+            0.0,
+            0,
+            al.new_list(),
+            al.new_list(),
+            tiempo_ms
+        )
+
+    # 3. Reconstruir el camino usando la pila retornada por bfs.path_to
+    stack_path = bfs.path_to(dest_id, visited)
+
+    path_ids = al.new_list()
+    while not st.is_empty(stack_path):
+        node_id = st.pop(stack_path)
+        al.add_last(path_ids, node_id)
+
+    num_nodes_path = al.size(path_ids)
+
+    # 4. Calcular distancia total del camino (suma de pesos de arcos)
+    total_dist = 0.0
+    for i in range(num_nodes_path - 1):
+        u = al.get_element(path_ids, i)
+        v = al.get_element(path_ids, i + 1)
+        edge = dg.get_edge(graph, u, v)
+        if edge is not None:
+            total_dist += edg.weight(edge)
+
+    # 5. Encontrar el último nodo dentro del radio desde el origen
+    last_inside_id = "Unknown"
+    origin_lat = origin_node["lat"]
+    origin_lon = origin_node["lon"]
+
+    for i in range(num_nodes_path):
+        node_id = al.get_element(path_ids, i)
+        node = mp.get(nodes_by_id, node_id)
+        if node is None:
+            continue
+        d_origin = haversine(origin_lat, origin_lon, node["lat"], node["lon"])
+        if d_origin <= radio_km:
+            last_inside_id = node_id
+        else:
+            # en cuanto se sale del área, dejamos de actualizar
+            break
+
+    # 6. Construir listas de primeros y últimos 5 nodos (con toda su info)
+    primeros_5_nodes = al.new_list()
+    ultimos_5_nodes = al.new_list()
+
+    if num_nodes_path > 0:
+        limite = min(5, num_nodes_path)
+        for i in range(limite):
+            node_id = al.get_element(path_ids, i)
+            node = mp.get(nodes_by_id, node_id)
+            al.add_last(primeros_5_nodes, node)
+
+        limite2 = min(5, num_nodes_path)
+        inicio_ultimos = num_nodes_path - limite2
+        for i in range(inicio_ultimos, num_nodes_path):
+            node_id = al.get_element(path_ids, i)
+            node = mp.get(nodes_by_id, node_id)
+            al.add_last(ultimos_5_nodes, node)
+
     end = get_time()
-    
-    return {
-        "origin_node": origin_node_id,
-        "dest_node": dest_node_id,
-        "radius_km": radius_km,
-        "last_node_in_area": last_node_in_area,
-        "path": path_list,
-        "total_distance": total_distance,
-        "total_nodes": al.size(path_list),
-        "first_5": first_5,
-        "last_5": last_5,
-        "time_ms": delta_time(start, end)
-    }
+    tiempo_ms = delta_time(start, end)
+
+    return (
+        origin_id,
+        dest_id,
+        last_inside_id,
+        path_ids,
+        total_dist,
+        num_nodes_path,
+        primeros_5_nodes,
+        ultimos_5_nodes,
+        tiempo_ms
+    )
     pass
 
 
@@ -753,11 +680,155 @@ def req_4(catalog, lat, lon):
     pass
 
 
-def req_5(catalog):
+def req_5(catalog, lat_origin, lon_origin, lat_dest, lon_dest, tipo_grafo):
     """
     Retorna el resultado del requerimiento 5
     """
     # TODO: Modificar el requerimiento 5
+    start = get_time()
+
+    # 1. Escoger grafo según selección del usuario
+    tipo = str(tipo_grafo).lower().strip()
+    if tipo.startswith("d"):  # 'd', 'dist', 'distancia', '1', etc.
+        graph = catalog["graph_distance"]
+    elif tipo.startswith("a"):  # 'a', 'agua', 'hidrica', '2', etc.
+        graph = catalog["graph_water"]
+    else:
+        # Por defecto, usar grafo de distancia si la entrada es rara
+        graph = catalog["graph_distance"]
+
+    nodes_by_id = catalog["nodes_by_id"]
+
+    # 2. Encontrar nodos de origen y destino más cercanos a las coordenadas
+    origin_node = find_closest_node(catalog, lat_origin, lon_origin)
+    dest_node = find_closest_node(catalog, lat_dest, lon_dest)
+
+    if origin_node is None or dest_node is None:
+        end = get_time()
+        tiempo_ms = delta_time(start, end)
+        return (
+            "Unknown",   # origin_id
+            "Unknown",   # dest_id
+            0.0,         # total_cost
+            0,           # num_vertices
+            0,           # num_arcos
+            al.new_list(),  # path_ids
+            al.new_list(),  # segment_costs
+            al.new_list(),  # primeros_5_nodes
+            al.new_list(),  # ultimos_5_nodes
+            tiempo_ms
+        )
+
+    origin_id = origin_node["id"]
+    dest_id = dest_node["id"]
+
+    # 3. Ejecutar Dijkstra desde el nodo de origen en el grafo seleccionado
+    structure = djk.dijsktra(graph, origin_id)
+
+    # Si no hay camino al destino
+    if not djk.has_path_to(dest_id, structure):
+        end = get_time()
+        tiempo_ms = delta_time(start, end)
+        return (
+            origin_id,
+            dest_id,
+            0.0,
+            0,
+            0,
+            al.new_list(),
+            al.new_list(),
+            al.new_list(),
+            al.new_list(),
+            tiempo_ms
+        )
+
+    # 4. Reconstruir el camino (pila de vértices) y pasarlo a ARRAY_LIST de ids
+    stack_path = djk.path_to(dest_id, structure)
+    if stack_path is None:
+        end = get_time()
+        tiempo_ms = delta_time(start, end)
+        return (
+            origin_id,
+            dest_id,
+            0.0,
+            0,
+            0,
+            al.new_list(),
+            al.new_list(),
+            al.new_list(),
+            al.new_list(),
+            tiempo_ms
+        )
+
+    path_ids = al.new_list()
+    n = lt.size(stack_path)
+
+    for i in range(n):
+        elem = lt.get_element(stack_path, i)
+        # Stack suele guardar nodos tipo {"info": id}, por si acaso chequeamos
+        if isinstance(elem, dict) and "info" in elem:
+            node_id = elem["info"]
+        else:
+            node_id = elem
+        al.add_last(path_ids, node_id)
+
+    num_vertices = n
+    num_arcos = max(0, num_vertices - 1)
+
+    # 5. Costo total desde Dijkstra
+    total_cost = djk.dist_to(dest_id, structure["visited"])
+
+    # 6. Costo por segmento (al siguiente vértice) según el grafo
+    segment_costs = al.new_list()
+    for i in range(num_vertices):
+        if i < num_vertices - 1:
+            u = al.get_element(path_ids, i)
+            v = al.get_element(path_ids, i + 1)
+            edge = dg.get_edge(graph, u, v)
+            if edge is not None:
+                cost = edg.weight(edge)
+            else:
+                cost = 0.0
+        else:
+            # Último nodo no tiene siguiente
+            cost = 0.0
+        al.add_last(segment_costs, cost)
+
+    # 7. Construir listas de primeros y últimos 5 nodos (dicts completos)
+    primeros_5_nodes = al.new_list()
+    ultimos_5_nodes = al.new_list()
+
+    if num_vertices > 0:
+        # Primeros 5
+        limite = min(5, num_vertices)
+        for i in range(limite):
+            node_id = al.get_element(path_ids, i)
+            node = mp.get(nodes_by_id, node_id)
+            al.add_last(primeros_5_nodes, node)
+
+        # Últimos 5
+        limite2 = min(5, num_vertices)
+        inicio_ultimos = num_vertices - limite2
+        for i in range(inicio_ultimos, num_vertices):
+            node_id = al.get_element(path_ids, i)
+            node = mp.get(nodes_by_id, node_id)
+            al.add_last(ultimos_5_nodes, node)
+
+    end = get_time()
+    tiempo_ms = delta_time(start, end)
+
+    return (
+        origin_id,
+        dest_id,
+        total_cost,
+        num_vertices,
+        num_arcos,
+        path_ids,
+        segment_costs,
+        primeros_5_nodes,
+        ultimos_5_nodes,
+        tiempo_ms
+    )
     pass
 
 def req_6(catalog):

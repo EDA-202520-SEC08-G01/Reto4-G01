@@ -144,101 +144,177 @@ def print_req_2(control):
         Función que imprime la solución del Requerimiento 2 en consola
     """
     # TODO: Imprimir el resultado del requerimiento 2
-    print("\n=== Ingrese los parámetros para el Requerimiento 2 ===")
-    origin_lat = float(input("Ingrese la latitud del punto de origen: "))
-    origin_lon = float(input("Ingrese la longitud del punto de origen: "))
-    dest_lat = float(input("Ingrese la latitud del punto de destino: "))
-    dest_lon = float(input("Ingrese la longitud del punto de destino: "))
-    radius_km = float(input("Ingrese el radio del área de interés en km: "))
-    
-    # Ejecutar requerimiento
-    result = l.req_2(control, origin_lat, origin_lon, dest_lat, dest_lon, radius_km)
-    
-    # Verificar si hay camino
-    if result["path"] is None:
-        print("\n==========================================================")
+    # Pedir datos al usuario
+    lat_origin = float(input("Ingrese la LATITUD del punto de origen: "))
+    lon_origin = float(input("Ingrese la LONGITUD del punto de origen: "))
+    lat_dest = float(input("Ingrese la LATITUD del punto de destino: "))
+    lon_dest = float(input("Ingrese la LONGITUD del punto de destino: "))
+    radio_km = float(input("Ingrese el radio del área de interés (en km): "))
+
+    (
+        origin_id,
+        dest_id,
+        last_inside_id,
+        path_ids,
+        total_dist,
+        num_nodes_path,
+        _primeros_5_nodes,   # no los usamos aquí
+        _ultimos_5_nodes,    # idem
+        tiempo_ms
+    ) = l.req_2(control, lat_origin, lon_origin, lat_dest, lon_dest, radio_km)
+
+    # Si no hay camino
+    if num_nodes_path == 0:
+        print("==========================================================")
         print("                      Requerimiento 2                     ")
         print("==========================================================")
-        print(f"\n{result['message']}")
-        print(f"Tiempo [ms]: {result['time_ms']:.3f}")
-        print("==========================================================\n")
+        print(f"No se reconoce un camino viable entre {origin_id} y {dest_id}.")
+        print("Tiempo [ms]: ", tiempo_ms)
+        print("========================================================== \n")
         return
-    
-    # Preparar tablas
-    headers = ["Identificador Único", "Posición (lat, lon)", "Num. Grullas", 
-               "Primeras 3 grullas", "Últimas 3 grullas", "Dist. siguiente (km)"]
-    
-    tabla_primeros = []
-    tabla_ultimos = []
-    
-    # Procesar primeros 5 nodos
-    for i in range(al.size(result["first_5"])):
-        node_info = al.get_element(result["first_5"], i)
-        tabla_primeros.append([
-            node_info["id"],
-            f"({node_info['lat']:.5f}, {node_info['lon']:.5f})",
-            node_info["num_individuals"],
-            node_info["first_3_tags"],
-            node_info["last_3_tags"],
-            node_info["distance_to_next"]
-        ])
-    
-    # Procesar últimos 5 nodos
-    for i in range(al.size(result["last_5"])):
-        node_info = al.get_element(result["last_5"], i)
-        tabla_ultimos.append([
-            node_info["id"],
-            f"({node_info['lat']:.5f}, {node_info['lon']:.5f})",
-            node_info["num_individuals"],
-            node_info["first_3_tags"],
-            node_info["last_3_tags"],
-            node_info["distance_to_next"]
-        ])
-    
-    # Crear string de la ruta completa
+
+    # Reconstruir lista de nodos (diccionarios) en el camino
+    nodes_list = control["nodes"]
+    path_nodes = []
+
+    for i in range(al.size(path_ids)):
+        node_id = al.get_element(path_ids, i)
+        encontrado = None
+        for node in nodes_list["elements"]:
+            if node["id"] == node_id:
+                encontrado = node
+                break
+        if encontrado is not None:
+            path_nodes.append(encontrado)
+
+    # Construir string de la ruta (IDs)
     ruta = ""
-    for i in range(al.size(result["path"])):
-        ruta += str(al.get_element(result["path"], i))
-        if i < al.size(result["path"]) - 1:
+    for i, node in enumerate(path_nodes):
+        ruta += node["id"]
+        if i < len(path_nodes) - 1:
             ruta += " -> "
-    
-    # Mensaje del último nodo en el área
-    if result["last_node_in_area"] is not None:
-        mensaje_area = f"El último nodo dentro del área de interés (radio {radius_km} km) es: {result['last_node_in_area']}"
-    else:
-        mensaje_area = f"Ningún nodo del camino se encuentra dentro del área de interés (radio {radius_km} km)"
-    
-    # Imprimir resultados
-    print("\n==========================================================")
+
+    # ==== IMPRESIÓN DE LA INFORMACIÓN GENERAL (lo que pide el enunciado) ====
+    print("==========================================================")
     print("                      Requerimiento 2                     ")
     print("==========================================================")
-    
-    print("\n==--- Información de la consulta ---==")
-    print(f"Nodo de origen encontrado: {result['origin_node']}")
-    print(f"Nodo de destino encontrado: {result['dest_node']}")
-    print(f"Radio del área de interés: {result['radius_km']} km")
-    print(f"\n{mensaje_area}")
-    
-    print("\n==--- Información del camino ---==")
-    print(f"Distancia total de desplazamiento: {result['total_distance']:.3f} km")
-    print(f"Número de puntos en la ruta: {result['total_nodes']}")
-    print(f"Tiempo de ejecución [ms]: {result['time_ms']:.3f}")
-    
-    print("\n==--- Ruta completa (primeros nodos) ---==")
-    ruta_preview = " -> ".join([str(al.get_element(result["path"], i)) 
-                                 for i in range(min(10, al.size(result["path"])))])
-    if al.size(result["path"]) > 10:
-        ruta_preview += " -> ..."
-    print(ruta_preview)
-    
-    print("\n==========================================================")
-    print("==--- Primeros 5 puntos migratorios de la ruta ---==")
+    print("Punto migratorio de ORIGEN más cercano: ", origin_id)
+    print("Punto migratorio de DESTINO más cercano: ", dest_id)
+    print(f"Último nodo dentro del radio de {radio_km} km: ", last_inside_id)
+    #print("Ruta tomada: ", ruta)
+    print("Distancia total del camino (km): ", total_dist)
+    print("Número de puntos en la ruta: ", num_nodes_path)
+    print("Tiempo [ms]: ", tiempo_ms)
+
+    # ==== TABLAS DE 5 PRIMEROS Y 5 ÚLTIMOS NODOS ====
+
+    headers = [
+        "ID nodo",
+        "Posición (lat, lon)",
+        "Fecha de creación",
+        "# grullas",
+        "Tags (3_P)",
+        "Tags (3_U)",
+        "Prom. dist. agua [km]",
+        "Dist. sig. nodo [km]"
+    ]
+
+    tabla_primeros = []
+    tabla_ultimos = []
+
+    def info_tags(node):
+        tags_list = node["tags"]["elements"]
+        num_grullas = len(tags_list)
+        if num_grullas == 0:
+            primeros3 = []
+            ultimos3 = []
+        elif num_grullas <= 3:
+            primeros3 = tags_list
+            ultimos3 = tags_list
+        else:
+            primeros3 = tags_list[:3]
+            ultimos3 = tags_list[-3:]
+        return num_grullas, primeros3, ultimos3
+
+    def formatear_posicion(node):
+        return f"{node['lat']:.5f}, {node['lon']:.5f}"
+
+    def formatear_tags(tags):
+        if not tags:
+            return "—"
+        return ", ".join(str(t) for t in tags)
+
+    # Primeros 5 puntos migratorios
+    limite = min(5, len(path_nodes))
+    for i in range(limite):
+        node = path_nodes[i]
+        num_grullas, primeros3, ultimos3 = info_tags(node)
+
+        # Distancia al siguiente nodo en la ruta
+        if i < len(path_nodes) - 1:
+            next_node = path_nodes[i + 1]
+            dist_next = l.haversine(
+                node["lat"], node["lon"],
+                next_node["lat"], next_node["lon"]
+            )
+            dist_next_str = f"{dist_next:.3f}"
+        else:
+            dist_next_str = "—"
+
+        tabla_primeros.append([
+            node["id"],
+            formatear_posicion(node),
+            node["creation_timestamp"],
+            num_grullas,
+            formatear_tags(primeros3),
+            formatear_tags(ultimos3),
+            f"{node['prom_distancia_agua']:.4f}",
+            dist_next_str
+        ])
+
+    # Últimos 5 puntos migratorios
+
+    total_nodos_camino = len(path_nodes)
+    # Tomar los últimos 5 (o menos, si hay menos de 5)
+    last_nodes = path_nodes[-5:] if total_nodos_camino >= 5 else path_nodes
+
+    for idx, node in enumerate(last_nodes):
+        # índice real del nodo dentro de path_nodes
+        original_index = total_nodos_camino - len(last_nodes) + idx
+
+        num_grullas, primeros3, ultimos3 = info_tags(node)
+
+        # Distancia al siguiente nodo en la ruta (hay siguiente
+        # solo si NO es el último nodo global del camino)
+        if original_index < total_nodos_camino - 1:
+            next_node = path_nodes[original_index + 1]
+            dist_next = l.haversine(
+                node["lat"], node["lon"],
+                next_node["lat"], next_node["lon"]
+            )
+            dist_next_str = f"{dist_next:.3f}"
+        else:
+            dist_next_str = "—"
+
+        tabla_ultimos.append([
+            node["id"],
+            formatear_posicion(node),
+            node["creation_timestamp"],
+            num_grullas,
+            formatear_tags(primeros3),
+            formatear_tags(ultimos3),
+            f"{node['prom_distancia_agua']:.4f}",
+            dist_next_str
+        ])
+
+    print("========================================================== \n")
+    print("==--- Primeros 5 puntos migratorios en la ruta ---==")
     print(tabulate(tabla_primeros, headers=headers, tablefmt="fancy_grid", stralign="center"))
-    
-    print("\n==========================================================")
-    print("==--- Últimos 5 puntos migratorios de la ruta ---==")
+    print("========================================================== \n")
+    print("==--- Últimos 5 puntos migratorios en la ruta ---==")
     print(tabulate(tabla_ultimos, headers=headers, tablefmt="fancy_grid", stralign="center"))
-    print("==========================================================\n")
+    print("========================================================== \n")
+    print()
     pass
 
 
@@ -274,7 +350,7 @@ def print_req_3(control):
                               i['distancia_siguiente']])
 
     print("==========================================================")
-    print("                      Requerimiento 1                     ")
+    print("                      Requerimiento 3                     ")
     print("==========================================================")
 
     print("==--- Información cargada ---==")
@@ -346,6 +422,175 @@ def print_req_5(control):
         Función que imprime la solución del Requerimiento 5 en consola
     """
     # TODO: Imprimir el resultado del requerimiento 5
+    lat_origin = float(input("Ingrese la LATITUD del punto de origen: "))
+    lon_origin = float(input("Ingrese la LONGITUD del punto de origen: "))
+    lat_dest = float(input("Ingrese la LATITUD del punto de destino: "))
+    lon_dest = float(input("Ingrese la LONGITUD del punto de destino: "))
+
+    print("\nSeleccione el tipo de grafo a utilizar:")
+    print("  1 - Grafo por distancia de desplazamiento")
+    print("  2 - Grafo por distancias a fuentes hídricas")
+    tipo_grafo = input("Ingrese 1 o 2 (o escriba 'distancia' / 'agua'): ")
+
+    (
+        origin_id,
+        dest_id,
+        total_cost,
+        num_vertices,
+        num_arcos,
+        path_ids,
+        segment_costs,
+        _primeros_5_nodes,   # no los usamos aquí
+        _ultimos_5_nodes,    # idem
+        tiempo_ms
+    ) = l.req_5(control, lat_origin, lon_origin, lat_dest, lon_dest, tipo_grafo)
+
+    # Si no hay camino
+    if num_vertices == 0 or al.size(path_ids) == 0:
+        print("==========================================================")
+        print("                      Requerimiento 5                     ")
+        print("==========================================================")
+        print(f"No se reconoce un camino viable entre {origin_id} y {dest_id}.")
+        print("Tiempo [ms]: ", tiempo_ms)
+        print("========================================================== \n")
+        return
+
+    # Reconstruir lista de nodos en el camino (diccionarios)
+    nodes_list = control["nodes"]
+    path_nodes = []
+
+    for i in range(al.size(path_ids)):
+        node_id = al.get_element(path_ids, i)
+        encontrado = None
+        for node in nodes_list["elements"]:
+            if node["id"] == node_id:
+                encontrado = node
+                break
+        if encontrado is not None:
+            path_nodes.append(encontrado)
+
+    # Construir string de la ruta a partir de los IDs
+    ruta = ""
+    for i in range(al.size(path_ids)):
+        nid = al.get_element(path_ids, i)
+        ruta += nid
+        if i < al.size(path_ids) - 1:
+            ruta += " -> "
+
+    # Descripción del tipo de costo
+    tipo = str(tipo_grafo).lower().strip()
+    if tipo.startswith("2") or tipo.startswith("a"):
+        desc_costo = "Costo total (distancia a fuentes hídricas)"
+    else:
+        desc_costo = "Costo total (distancia de desplazamiento)"
+
+    # ==== IMPRESIÓN DE LA INFORMACIÓN GENERAL ====
+    print("==========================================================")
+    print("                      Requerimiento 5                     ")
+    print("==========================================================")
+    print("Punto migratorio de ORIGEN más cercano: ", origin_id)
+    print("Punto migratorio de DESTINO más cercano: ", dest_id)
+    #print("Ruta óptima identificada: ", ruta)
+    print(desc_costo + ": ", total_cost)
+    print("Número de puntos (vértices) en la ruta: ", num_vertices)
+    print("Número de segmentos (arcos) en la ruta: ", num_arcos)
+    print("Tiempo [ms]: ", tiempo_ms)
+
+    # ==== TABLAS DE 5 PRIMEROS Y 5 ÚLTIMOS NODOS ====
+
+    headers = [
+        "ID nodo",
+        "Posición (lat, lon)",
+        "Fecha de creación",
+        "# grullas",
+        "Tags (3 primeros)",
+        "Tags (3 últimos)",
+        "Prom. dist. agua [km]",
+        "Costo sig. segmento"
+    ]
+
+    tabla_primeros = []
+    tabla_ultimos = []
+
+    def info_tags(node):
+        tags_list = node["tags"]["elements"]
+        num_grullas = len(tags_list)
+        if num_grullas == 0:
+            primeros3 = []
+            ultimos3 = []
+        elif num_grullas <= 3:
+            primeros3 = tags_list
+            ultimos3 = tags_list
+        else:
+            primeros3 = tags_list[:3]
+            ultimos3 = tags_list[-3:]
+        return num_grullas, primeros3, ultimos3
+
+    def formatear_posicion(node):
+        return f"{node['lat']:.5f}, {node['lon']:.5f}"
+
+    def formatear_tags(tags):
+        if not tags:
+            return "—"
+        return ", ".join(str(t) for t in tags)
+
+    # ===== Primeros 5 puntos migratorios =====
+    total_nodos_camino = len(path_nodes)
+    limite = min(5, total_nodos_camino)
+
+    for i in range(limite):
+        node = path_nodes[i]
+        num_grullas, primeros3, ultimos3 = info_tags(node)
+
+        # costo al siguiente segmento (según el grafo elegido)
+        costo_seg = al.get_element(segment_costs, i)
+        costo_seg_str = f"{costo_seg:.3f}" if i < num_vertices - 1 else "—"
+
+        tabla_primeros.append([
+            node["id"],
+            formatear_posicion(node),
+            node["creation_timestamp"],
+            num_grullas,
+            formatear_tags(primeros3),
+            formatear_tags(ultimos3),
+            f"{node['prom_distancia_agua']:.4f}",
+            costo_seg_str
+        ])
+
+    # ===== Últimos 5 puntos migratorios =====
+    last_nodes = path_nodes[-5:] if total_nodos_camino >= 5 else path_nodes
+
+    for idx, node in enumerate(last_nodes):
+        # índice real dentro de path_nodes / segment_costs
+        original_index = total_nodos_camino - len(last_nodes) + idx
+
+        num_grullas, primeros3, ultimos3 = info_tags(node)
+
+        if original_index < num_vertices - 1:
+            costo_seg = al.get_element(segment_costs, original_index)
+            costo_seg_str = f"{costo_seg:.3f}"
+        else:
+            costo_seg_str = "—"
+
+        tabla_ultimos.append([
+            node["id"],
+            formatear_posicion(node),
+            node["creation_timestamp"],
+            num_grullas,
+            formatear_tags(primeros3),
+            formatear_tags(ultimos3),
+            f"{node['prom_distancia_agua']:.4f}",
+            costo_seg_str
+        ])
+
+    print("========================================================== \n")
+    print("==--- Primeros 5 puntos migratorios en la ruta ---==")
+    print(tabulate(tabla_primeros, headers=headers, tablefmt="fancy_grid", stralign="center"))
+    print("========================================================== \n")
+    print("==--- Últimos 5 puntos migratorios en la ruta ---==")
+    print(tabulate(tabla_ultimos, headers=headers, tablefmt="fancy_grid", stralign="center"))
+    print("========================================================== \n")
+    print()
     pass
 
 
