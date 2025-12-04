@@ -881,8 +881,8 @@ def req_4(catalog, lat_origin, lon_origin):
             
             node_info = {
                 "id": vertex_id,
-                "lat": node.get("lat", "Unknown"),
-                "lon": node.get("lon", "Unknown"),
+                "lat": node["lat"] if "lat" in node else "Unknown",
+                "lon": node["lon"] if "lon" in node else "Unknown",
                 "num_individuals": num_tags,
                 "first_3_tags": first_3_tags,
                 "last_3_tags": last_3_tags
