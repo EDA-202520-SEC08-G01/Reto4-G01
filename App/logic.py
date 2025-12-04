@@ -35,30 +35,20 @@ def find_closest_node(catalog, lat, lon):
 
     Si no hay nodos, devuelve (None, math.inf).
     """
-    nodes_map = catalog["nodes_by_id"]
-    keys = mp.key_set(nodes_map)  # AL con todas las llaves del map
+    nodes_list = catalog["nodes"]
+    best_node = None
+    best_dist = math.inf
 
-    min_dist = math.inf
-    closest_id = None
-
-    total = al.size(keys)
-    for i in range(total):
-        node_id = al.get_element(keys, i)
-        node = mp.get(nodes_map, node_id)
-
-        if node is None:
-            continue
-
-        if "lat" not in node or "lon" not in node:
-            continue
-
+    n = al.size(nodes_list)
+    for i in range(n):
+        node = al.get_element(nodes_list, i)
         d = haversine(lat, lon, node["lat"], node["lon"])
+        if d < best_dist:
+            best_dist = d
+            best_node = node
 
-        if d < min_dist:
-            min_dist = d
-            closest_id = node_id
+    return best_node
 
-    return closest_id, min_dist
 def get_first_last_nodes(catalog, path_list, graph):
     """
     Extrae los primeros 5 y últimos 5 nodos de un camino con información detallada.
