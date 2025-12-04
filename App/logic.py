@@ -428,15 +428,14 @@ def load_data(catalog, filename='1000_cranes_mongolia_small.csv'):
 #prueba commit
 # Funciones de consulta sobre el catálogo
 def req_1(catalog, migr_origin, migr_dest):
-    """
-    Retorna el resultado del requerimiento 1
-    """
-    # TODO: Modificar el requerimiento 1
 
     start = get_time()
     graph = catalog["graph_distance"]
+
+    # 1. DFS desde el origen
     structure = dfs.dfs(graph, migr_origin)
 
+    # 2. Verificar ruta
     if not dfs.has_path_to(migr_dest, structure):
         end = get_time()
         tiempo_ms = delta_time(start, end)
@@ -448,49 +447,54 @@ def req_1(catalog, migr_origin, migr_dest):
             "ultimos_5": al.new_list(),
             "tiempo_ms": tiempo_ms
         }
-    
+
+    # 3. Reconstruir camino (keys)
     path = dfs.path_to(migr_dest, structure)
 
+    # 4. Convertir stack a array_list
     path_al = al.new_list()
     for i in range(lt.size(path)):
-        al.add_last(path_al, lt.get_element(path, i)["info"])
+        key_v = lt.get_element(path, i)   # <-- SOLO LA LLAVE
+        al.add_last(path_al, key_v)
 
+    # 5. Distancia total
     total_dist = 0.0
     num_vertices = al.size(path_al)
+
     for i in range(num_vertices - 1):
         u = al.get_element(path_al, i)
         v = al.get_element(path_al, i + 1)
-        edge = dg.get_edge(graph, u, v)
+        edge = dg.get_edge(graph, u, v)  # <-- u y v deben ser strings
         if edge is not None:
             total_dist += edg.weight(edge)
 
-    i_primeros_5 = al.new_list()
-    i_ultimos_5 = al.new_list()
+    # 6. Primeros 5 y últimos 5
     primeros_5 = al.new_list()
     ultimos_5 = al.new_list()
     total_nodos = lt.size(path)
 
     if total_nodos > 0:
 
+        # primeros 5
         limite = min(5, total_nodos)
         for i in range(limite):
-            al.add_last(i_primeros_5, lt.get_element(path, i)["info"])
+            key_v = lt.get_element(path, i)
+            info = mp.get(catalog["nodes_by_id"], key_v)
+            al.add_last(primeros_5, info)
 
+        # últimos 5
         limite2 = min(5, total_nodos)
-        inicio_ultimos = total_nodos - limite2
-        for i in range(inicio_ultimos, total_nodos):
-            al.add_last(i_ultimos_5, lt.get_element(path, i)["info"])
-        
-        for i in i_primeros_5["elements"]:
-            al.add_last(primeros_5, mp.get(catalog["nodes_by_id"], i))
-
-        for i in i_ultimos_5["elements"]:
-            al.add_last(ultimos_5, mp.get(catalog["nodes_by_id"], i))
+        inicio = total_nodos - limite2
+        for i in range(inicio, total_nodos):
+            key_v = lt.get_element(path, i)
+            info = mp.get(catalog["nodes_by_id"], key_v)
+            al.add_last(ultimos_5, info)
 
     end = get_time()
     tiempo_ms = delta_time(start, end)
 
     return path_al, total_dist, lt.size(path), primeros_5, ultimos_5, tiempo_ms
+
 
 def req_2(catalog, origin_lat, origin_lon, dest_lat, dest_lon, radius_km):
     """
