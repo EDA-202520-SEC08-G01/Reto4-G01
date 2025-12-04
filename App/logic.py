@@ -139,7 +139,7 @@ def load_data(catalog, filename='1000_cranes_mongolia_small.csv'):
         ev_dist_agua = ev["dist_agua_km"]
         ev_tag = ev["tag"]
 
-        # Buscar si el evento pertenece a algún nodo existente
+        # Busco si el evento pertenece a algún nodo existente
         nodo_encontrado = None
         j = 0
         total_nodes = al.size(nodes_list)
@@ -156,13 +156,13 @@ def load_data(catalog, filename='1000_cranes_mongolia_small.csv'):
 
             j += 1
 
-        # Si se encontró nodo, agregar evento al nodo
+        # agrego el evento al nodo
         if nodo_encontrado is not None:
 
             al.add_last(nodo_encontrado["events"], ev)
             nodo_encontrado["events_count"] += 1
 
-            # Agregar tag si no existe
+            # Agrego el tag si no existe
             tags_list = nodo_encontrado["tags"]
             found = False
             k = 0
@@ -176,7 +176,6 @@ def load_data(catalog, filename='1000_cranes_mongolia_small.csv'):
             if not found:
                 al.add_last(tags_list, ev_tag)
 
-            # Actualizar promedio distancia al agua
             c = nodo_encontrado["events_count"]
             old_avg = nodo_encontrado["prom_distancia_agua"]
             nodo_encontrado["prom_distancia_agua"] = (old_avg * (c - 1) + ev_dist_agua) / c
@@ -184,7 +183,6 @@ def load_data(catalog, filename='1000_cranes_mongolia_small.csv'):
             mp.put(event_to_node, ev_id, nodo_encontrado["id"])
 
         else:
-            # Crear nuevo nodo
             node_id = ev_id
             node = {
                 "id": node_id,
@@ -248,7 +246,7 @@ def load_data(catalog, filename='1000_cranes_mongolia_small.csv'):
                 agg["count"] += 1
                 mp.put(sub, node_id, agg)
 
-                # Grafo hídrico
+                # Grafo de agua
                 agua = node_curr["prom_distancia_agua"]
                 sub_h = mp.get(dist_hidrica, prev_node_id)
                 if sub_h is None:
@@ -319,7 +317,6 @@ def load_data(catalog, filename='1000_cranes_mongolia_small.csv'):
         ultimos_5
     )
 
-#prueba commit
 # Funciones de consulta sobre el catálogo
 def req_1(catalog, lat_origin, lon_origin, lat_dest, lon_dest, crane_id):
 
@@ -327,7 +324,6 @@ def req_1(catalog, lat_origin, lon_origin, lat_dest, lon_dest, crane_id):
     graph = catalog["graph_distance"]
     nodes_by_id = catalog["nodes_by_id"]
 
-    # 1. Encontrar nodos de origen y destino más cercanos a las coordenadas
     origin_node = find_closest_node(catalog, lat_origin, lon_origin)
     dest_node = find_closest_node(catalog, lat_dest, lon_dest)
 
@@ -367,10 +363,9 @@ def req_1(catalog, lat_origin, lon_origin, lat_dest, lon_dest, crane_id):
             tiempo_ms
         )
 
-    # 2. DFS desde el nodo de origen
     structure = dfs.dfs(graph, origin_id)
 
-    # 3. Verificar que haya camino al destino
+    # Verificar que haya camino al destino
     if not dfs.has_path_to(dest_id, structure):
         end = get_time()
         tiempo_ms = delta_time(start, end)
@@ -387,7 +382,6 @@ def req_1(catalog, lat_origin, lon_origin, lat_dest, lon_dest, crane_id):
             tiempo_ms
         )
 
-    # 4. Reconstruir camino como stack de ids (origen → destino usando pop)
     path_stack = dfs.path_to(dest_id, structure)  # stack con llaves de vértices
 
     path_ids = al.new_list()
@@ -397,7 +391,6 @@ def req_1(catalog, lat_origin, lon_origin, lat_dest, lon_dest, crane_id):
 
     num_vertices = al.size(path_ids)
 
-    # 5. Calcular distancia total y costos por segmento
     total_dist = 0.0
     segment_costs = al.new_list()
 
@@ -416,7 +409,6 @@ def req_1(catalog, lat_origin, lon_origin, lat_dest, lon_dest, crane_id):
             # Último nodo no tiene siguiente
             al.add_last(segment_costs, 0.0)
 
-    # 6. Buscar el primer nodo donde esté la grulla (crane_id)
     if isinstance(crane_id, str) and crane_id.isdigit():
         crane_tag = int(crane_id)
     else:
@@ -439,7 +431,6 @@ def req_1(catalog, lat_origin, lon_origin, lat_dest, lon_dest, crane_id):
             first_node_with_crane = node_id
             break
 
-    # 7. Primeros 5 y últimos 5 nodos (info completa)
     primeros_5_nodes = al.new_list()
     ultimos_5_nodes = al.new_list()
 
@@ -484,11 +475,9 @@ def req_2(catalog, lat_origin, lon_origin, lat_dest, lon_dest, radio_km):
     graph = catalog["graph_distance"]
     nodes_by_id = catalog["nodes_by_id"]
 
-    # 1. Encontrar nodos de origen y destino más cercanos a las coordenadas
     origin_node = find_closest_node(catalog, lat_origin, lon_origin)
     dest_node = find_closest_node(catalog, lat_dest, lon_dest)
 
-    # Si por alguna razón no se encuentran nodos
     if origin_node is None or dest_node is None:
         end = get_time()
         tiempo_ms = delta_time(start, end)
@@ -507,10 +496,8 @@ def req_2(catalog, lat_origin, lon_origin, lat_dest, lon_dest, radio_km):
     origin_id = origin_node["id"]
     dest_id = dest_node["id"]
 
-    # 2. BFS desde el nodo de origen
     visited = bfs.bfs(graph, origin_id)
 
-    # Si no hay camino al destino
     if not bfs.has_path_to(dest_id, visited):
         end = get_time()
         tiempo_ms = delta_time(start, end)
@@ -526,8 +513,7 @@ def req_2(catalog, lat_origin, lon_origin, lat_dest, lon_dest, radio_km):
             tiempo_ms
         )
 
-    # 3. Reconstruir el camino usando la pila retornada por bfs.path_to
-    stack_path = bfs.path_to(dest_id, visited)
+    stack_path = bfs.path_to(dest_id, visited) #pila con llaves de vértices
 
     path_ids = al.new_list()
     while not st.is_empty(stack_path):
@@ -536,7 +522,6 @@ def req_2(catalog, lat_origin, lon_origin, lat_dest, lon_dest, radio_km):
 
     num_nodes_path = al.size(path_ids)
 
-    # 4. Calcular distancia total del camino (suma de pesos de arcos)
     total_dist = 0.0
     for i in range(num_nodes_path - 1):
         u = al.get_element(path_ids, i)
@@ -545,7 +530,7 @@ def req_2(catalog, lat_origin, lon_origin, lat_dest, lon_dest, radio_km):
         if edge is not None:
             total_dist += edg.weight(edge)
 
-    # 5. Encontrar el último nodo dentro del radio desde el origen
+    #Encontrar el último nodo dentro del radio desde el origen
     last_inside_id = "Unknown"
     origin_lat = origin_node["lat"]
     origin_lon = origin_node["lon"]
@@ -559,10 +544,9 @@ def req_2(catalog, lat_origin, lon_origin, lat_dest, lon_dest, radio_km):
         if d_origin <= radio_km:
             last_inside_id = node_id
         else:
-            # en cuanto se sale del área, dejamos de actualizar
+            # en cuanto se sale del área, dejo de buscar
             break
 
-    # 6. Construir listas de primeros y últimos 5 nodos (con toda su info)
     primeros_5_nodes = al.new_list()
     ultimos_5_nodes = al.new_list()
 
@@ -604,14 +588,13 @@ def req_3(catalog):
 
     start = get_time()
 
-    graph = catalog["graph_distance"]     # Grafo del nicho biológico
-    nodes_map = catalog["nodes_by_id"]    # id_nodo -> info_nodo
-
+    graph = catalog["graph_distance"]     
+    nodes_map = catalog["nodes_by_id"]   
+    
     # dfo 
     structure = dfo.dfo(graph)
     reversepost = structure["reversepost"]   # stack con reverse postorder
 
-    # Si no hay nada, no hay ruta migratoria viable
     if st.size(reversepost) == 0:
         end = get_time()
         tiempo_ms = delta_time(start, end)
@@ -623,16 +606,15 @@ def req_3(catalog):
             tiempo_ms
         )
 
-    # 2. Pasar reversepost (stack) a un array_list 'order' en orden topológico 
     order = al.new_list()
     while st.size(reversepost) > 0:
-        v = st.pop(reversepost)       # al hacer pop de reversepost se obtiene el topological order
+        v = st.pop(reversepost)      
         al.add_last(order, v)
 
     total_puntos = al.size(order)
 
-    #3. Total de individuos únicos que usan la ruta migratoria 
-    individuos_set = mp.new_map(5000, 0.7)   # mapa de grullas usando map
+    #Total de individuos únicos que usan la ruta migratoria 
+    individuos_set = mp.new_map(5000, 0.7)   
 
     for i in range(total_puntos):
         nid = al.get_element(order, i)
@@ -649,7 +631,6 @@ def req_3(catalog):
 
     total_individuos = mp.size(individuos_set)
 
-    # Construir lista enriquecida de puntos migratorios de la ruta
     enriched = al.new_list()
 
     for i in range(total_puntos):
@@ -659,7 +640,6 @@ def req_3(catalog):
         if node is None:
             continue
 
-        # lat / lon (Unknown si no existen)
         if "lat" in node and "lon" in node:
             lat = node["lat"]
             lon = node["lon"]
@@ -688,7 +668,6 @@ def req_3(catalog):
             grulla_id = al.get_element(tags_list, k)
             al.add_last(ultimas_3, grulla_id)
 
-        # Distancias a vértices vecinos en la ruta
         dist_prev = "Unknown"
         dist_next = "Unknown"
 
@@ -719,16 +698,13 @@ def req_3(catalog):
 
         al.add_last(enriched, desc)
 
-    # --- 5. Sacar los CINCO primeros y CINCO últimos vértices de la ruta migratoria ---
     limit = 5 if total_puntos >= 5 else total_puntos
 
-    # sub_list(list, pos_i, num_elements)
     primeros_5 = al.sub_list(enriched, 0, limit)
     ultimos_5 = al.sub_list(enriched, total_puntos - limit, limit)
     end = get_time()
     tiempo_ms = delta_time(start, end)
 
-    # --- 6. Retorno en el formato que probablemente usará tu view ---
     return (
         total_puntos,
         total_individuos,
@@ -744,8 +720,7 @@ def req_4(catalog, lat_origin, lon_origin):
     # TODO: Modificar el requerimiento 4
     
     start = get_time()
-    
-    # 1. Encontrar nodo de origen más cercano a las coordenadas
+
     origin_node = find_closest_node(catalog, lat_origin, lon_origin)
     
     if origin_node is None:
@@ -759,13 +734,11 @@ def req_4(catalog, lat_origin, lon_origin):
             al.new_list(),
             delta_time(start, end)
         )
-    
-    # IMPORTANTE: Convertir a string para evitar problemas de tipos
+
     origin_id = str(origin_node["id"])
-    graph = catalog["graph_water"]  # Usar grafo hídrico
+    graph = catalog["graph_water"] 
     nodes_by_id = catalog["nodes_by_id"]
-    
-    # 2. Verificar que el vértice existe en el grafo
+
     if not dg.contains_vertex(graph, origin_id):
         end = get_time()
         return (
@@ -777,28 +750,22 @@ def req_4(catalog, lat_origin, lon_origin):
             al.new_list(),
             delta_time(start, end)
         )
-    
-    # 3. Ejecutar Prim desde el origen
+
     prim_structure = prim.prim_mst(graph, origin_id)
-    
-    # 4. Obtener los vértices que pertenecen al MST
-    # Un vértice está en el MST si su distancia es < infinito
+
     mst_vertices = al.new_list()
     keys_dist = mp.key_set(prim_structure["dist_to"])
     
     for i in range(al.size(keys_dist)):
         vertex_id = al.get_element(keys_dist, i)
-        # Convertir a string por consistencia
         vertex_id = str(vertex_id)
         dist = mp.get(prim_structure["dist_to"], vertex_id)
-        
-        # Solo incluir vértices alcanzables (distancia < infinito)
+
         if dist is not None and dist < float("inf"):
             al.add_last(mst_vertices, vertex_id)
     
     total_puntos = al.size(mst_vertices)
-    
-    # Si no hay puntos en el MST
+
     if total_puntos == 0:
         end = get_time()
         return (
@@ -811,10 +778,10 @@ def req_4(catalog, lat_origin, lon_origin):
             delta_time(start, end)
         )
     
-    # 5. Calcular peso total del MST (distancia total a fuentes hídricas)
+    # Calcular peso total del MST (distancia total a fuentes hídricas)
     total_dist_hidrica = prim.weight_mst(graph, prim_structure)
     
-    # 6. Contar individuos únicos (grullas) que usan el corredor
+    # Contar individuos únicos (grullas) que usan el corredor
     individuos_map = mp.new_map(total_puntos * 4, 0.7)
     
     for i in range(total_puntos):
@@ -829,19 +796,16 @@ def req_4(catalog, lat_origin, lon_origin):
         
         for j in range(num_tags):
             tag = al.get_element(tags, j)
-            # Convertir tag a string para evitar problemas de comparación
             tag_str = str(tag)
             if not mp.contains(individuos_map, tag_str):
                 mp.put(individuos_map, tag_str, True)
     
     total_individuos = mp.size(individuos_map)
-    
-    # 7. Obtener primeros 5 y últimos 5 nodos con información detallada
+
     primeros_5 = al.new_list()
     ultimos_5 = al.new_list()
     
     if total_puntos > 0:
-        # Primeros 5
         limit_first = min(5, total_puntos)
         for i in range(limit_first):
             vertex_id = al.get_element(mst_vertices, i)
@@ -849,27 +813,22 @@ def req_4(catalog, lat_origin, lon_origin):
             
             if node is None:
                 continue
-            
-            # Obtener tags
+
             tags = node["tags"]
             num_tags = al.size(tags)
-            
-            # Primeros 3 tags
+
             first_3_tags = al.new_list()
             for j in range(min(3, num_tags)):
                 al.add_last(first_3_tags, al.get_element(tags, j))
             
             if al.size(first_3_tags) == 0:
                 al.add_last(first_3_tags, "Desconocido")
-            
-            # Últimos 3 tags
+
             last_3_tags = al.new_list()
             if num_tags <= 3:
-                # Si hay 3 o menos, copiar los primeros
                 for j in range(num_tags):
                     al.add_last(last_3_tags, al.get_element(tags, j))
             else:
-                # Tomar los últimos 3
                 start_idx = num_tags - 3
                 for j in range(start_idx, num_tags):
                     al.add_last(last_3_tags, al.get_element(tags, j))
@@ -887,8 +846,7 @@ def req_4(catalog, lat_origin, lon_origin):
             }
             
             al.add_last(primeros_5, node_info)
-        
-        # Últimos 5
+
         limit_last = min(5, total_puntos)
         start_last = total_puntos - limit_last
         
@@ -898,20 +856,17 @@ def req_4(catalog, lat_origin, lon_origin):
             
             if node is None:
                 continue
-            
-            # Obtener tags
+
             tags = node["tags"]
             num_tags = al.size(tags)
-            
-            # Primeros 3 tags
+
             first_3_tags = al.new_list()
             for j in range(min(3, num_tags)):
                 al.add_last(first_3_tags, al.get_element(tags, j))
             
             if al.size(first_3_tags) == 0:
                 al.add_last(first_3_tags, "Desconocido")
-            
-            # Últimos 3 tags
+
             last_3_tags = al.new_list()
             if num_tags <= 3:
                 for j in range(num_tags):
@@ -955,19 +910,16 @@ def req_5(catalog, lat_origin, lon_origin, lat_dest, lon_dest, tipo_grafo):
     # TODO: Modificar el requerimiento 5
     start = get_time()
 
-    # 1. Escoger grafo según selección del usuario
     tipo = str(tipo_grafo).lower().strip()
-    if tipo.startswith("d"):  # 'd', 'dist', 'distancia', '1', etc.
+    if tipo.startswith("d"):  
         graph = catalog["graph_distance"]
-    elif tipo.startswith("a"):  # 'a', 'agua', 'hidrica', '2', etc.
+    elif tipo.startswith("a"):
         graph = catalog["graph_water"]
     else:
-        # Por defecto, usar grafo de distancia si la entrada es rara
         graph = catalog["graph_distance"]
 
     nodes_by_id = catalog["nodes_by_id"]
 
-    # 2. Encontrar nodos de origen y destino más cercanos a las coordenadas
     origin_node = find_closest_node(catalog, lat_origin, lon_origin)
     dest_node = find_closest_node(catalog, lat_dest, lon_dest)
 
@@ -990,10 +942,8 @@ def req_5(catalog, lat_origin, lon_origin, lat_dest, lon_dest, tipo_grafo):
     origin_id = origin_node["id"]
     dest_id = dest_node["id"]
 
-    # 3. Ejecutar Dijkstra desde el nodo de origen en el grafo seleccionado
     structure = djk.dijsktra(graph, origin_id)
 
-    # Si no hay camino al destino
     if not djk.has_path_to(dest_id, structure):
         end = get_time()
         tiempo_ms = delta_time(start, end)
@@ -1009,8 +959,7 @@ def req_5(catalog, lat_origin, lon_origin, lat_dest, lon_dest, tipo_grafo):
             al.new_list(),
             tiempo_ms
         )
-
-    # 4. Reconstruir el camino (pila de vértices) y pasarlo a ARRAY_LIST de ids
+# (pila de vértices) y pasarlo a ARRAY_LIST de ids
     stack_path = djk.path_to(dest_id, structure)
     if stack_path is None:
         end = get_time()
@@ -1033,7 +982,6 @@ def req_5(catalog, lat_origin, lon_origin, lat_dest, lon_dest, tipo_grafo):
 
     for i in range(n):
         elem = lt.get_element(stack_path, i)
-        # Stack suele guardar nodos tipo {"info": id}, por si acaso chequeamos
         if isinstance(elem, dict) and "info" in elem:
             node_id = elem["info"]
         else:
@@ -1043,10 +991,10 @@ def req_5(catalog, lat_origin, lon_origin, lat_dest, lon_dest, tipo_grafo):
     num_vertices = n
     num_arcos = max(0, num_vertices - 1)
 
-    # 5. Costo total desde Dijkstra
+    #Costo total desde Dijkstra
     total_cost = djk.dist_to(dest_id, structure["visited"])
 
-    # 6. Costo por segmento (al siguiente vértice) según el grafo
+    #Costo por segmento (al siguiente vértice) según el grafo
     segment_costs = al.new_list()
     for i in range(num_vertices):
         if i < num_vertices - 1:
@@ -1058,11 +1006,9 @@ def req_5(catalog, lat_origin, lon_origin, lat_dest, lon_dest, tipo_grafo):
             else:
                 cost = 0.0
         else:
-            # Último nodo no tiene siguiente
             cost = 0.0
         al.add_last(segment_costs, cost)
 
-    # 7. Construir listas de primeros y últimos 5 nodos (dicts completos)
     primeros_5_nodes = al.new_list()
     ultimos_5_nodes = al.new_list()
 
@@ -1103,8 +1049,7 @@ def req_6(catalog):
     graph = catalog["graph_water"]
     nodes_map = catalog["nodes_by_id"]
 
-    # --- 1. Obtener todos los vértices del grafo hídrico ---
-    verts = dg.vertices(graph)   # array_list con IDs de nodos
+    verts = dg.vertices(graph)   
 
     num_vertices = al.size(verts)
 
@@ -1116,7 +1061,6 @@ def req_6(catalog):
 
     subred_id_counter = 0
 
-    # --- 2. Recorrer todos los nodos y lanzar BFS por cada componente ---
     for i in range(num_vertices):
         nid = al.get_element(verts, i)
 
@@ -1146,13 +1090,11 @@ def req_6(catalog):
                 mp.put(node_to_subred, vid, subred_id_counter)
                 al.add_last(nodes_list, vid)
 
-    # Hasta aquí ya tenemos:
     # - node_to_subred: nodo -> subred_id
     # - subred_to_nodes: subred_id -> array_list con nodos de esa subred
 
     total_subredes = subred_id_counter
 
-    # --- 3. Construir la info detallada de cada subred ---
     subredes_info = al.new_list()
 
     for sid in range(1, total_subredes + 1):
@@ -1167,7 +1109,6 @@ def req_6(catalog):
         if cant_nodos == 0:
             continue
 
-        # --- 3.1 Calcular bounding box lat/lon y recolectar grullas únicas ---
         lat_min = None
         lat_max = None
         lon_min = None
@@ -1203,7 +1144,6 @@ def req_6(catalog):
                 grulla_id = al.get_element(tags_list, j)
                 mp.put(individuos_map, grulla_id, True)
 
-        # Si bounding box nunca se actualizó:
         if lat_min is None:
             lat_min = "Unknown"
             lat_max = "Unknown"
@@ -1212,7 +1152,6 @@ def req_6(catalog):
 
         total_individuos = mp.size(individuos_map)
 
-        # --- 3.2 Obtener primeros 3 y últimos 3 nodos de la subred ---
         primeros_3_nodos = al.new_list()
         ultimos_3_nodos = al.new_list()
 
@@ -1243,7 +1182,6 @@ def req_6(catalog):
             }
             al.add_last(ultimos_3_nodos, info_nodo)
 
-        # --- 3.3 Obtener primeros 3 y últimos 3 IDs de grullas de la subred ---
         primeros_3_grullas = al.new_list()
         ultimos_3_grullas = al.new_list()
 
@@ -1265,7 +1203,6 @@ def req_6(catalog):
             gid = al.get_element(ids_grullas_al, i)
             al.add_last(ultimos_3_grullas, gid)
 
-        # --- 3.4 Construir descriptor de subred ---
         subred_info = {
             "subred_id": sid,
             "num_puntos": cant_nodos,
@@ -1290,7 +1227,6 @@ def req_6(catalog):
 
     total_subredes = al.size(subredes_ordenadas)
 
-    # 5 subredes más grandes
     limit_comp = 5
     if total_subredes < 5:
         limit_comp = total_subredes
