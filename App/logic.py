@@ -124,7 +124,7 @@ def get_first_last_nodes(catalog, path_list, graph):
 
         al.add_last(first_5, node_info)
 
-    # ultimos 5
+    # ultimos 5-
     limit_last = min(5, total_nodes)
     start_last_section = total_nodes - limit_last
 

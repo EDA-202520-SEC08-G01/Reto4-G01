@@ -7,7 +7,7 @@ from DataStructures.List import array_list as al
 from DataStructures.Graph import prim_structure as pst
 
 def prim_mst(my_graph, source):
-   
+
     g_order = dg.order(my_graph)
     prim = pst.new_prim_structure(source, g_order)
 
@@ -15,12 +15,13 @@ def prim_mst(my_graph, source):
 
     for i in range(al.size(vertices)):
         v = al.get_element(vertices, i)
+        v = str(v)
         mp.put(prim["marked"], v, False)
         mp.put(prim["dist_to"], v, float("inf"))
         mp.put(prim["edge_from"], v, None)
 
     mp.put(prim["dist_to"], source, 0)
-    pq.insert(prim["pq"], source, 0)
+    pq.insert(prim["pq"], 0, source)
 
     while not pq.is_empty(prim["pq"]):
         v = pq.remove(prim["pq"])
@@ -32,6 +33,8 @@ def prim_mst(my_graph, source):
 
         for i in range(al.size(adj_keys)):
             w = al.get_element(adj_keys, i)
+            w = str(w)
+            v = str(v)
             edge = mp.get(adj_map, w)
             weight = edg.weight(edge)
 
@@ -42,7 +45,7 @@ def prim_mst(my_graph, source):
             if weight < old_dist:
                 mp.put(prim["dist_to"], w, weight)
                 mp.put(prim["edge_from"], w, v)
-                pq.insert(prim["pq"], w, weight)
+                pq.insert(prim["pq"], weight, w)
 
     return prim
 

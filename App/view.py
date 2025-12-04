@@ -481,11 +481,13 @@ def print_req_3(control):
     print()
 
 
+from tabulate import tabulate
+from DataStructures.List import array_list as al
+
 def print_req_4(control):
     """
-        Función que imprime la solución del Requerimiento 4 en consola
+    Función que imprime la solución del Requerimiento 4 en consola
     """
-    # TODO: Imprimir el resultado del requerimiento 4
 
     lat_origin = float(input("Ingrese la LATITUD del punto de origen: "))
     lon_origin = float(input("Ingrese la LONGITUD del punto de origen: "))
@@ -504,7 +506,7 @@ def print_req_4(control):
     print("                      Requerimiento 4                     ")
     print("==========================================================")
 
-    # Caso sin red hídrica viable
+    # --- Caso sin red hídrica ---
     if total_puntos == 0:
         print("No se reconoce una red hídrica viable a partir del origen especificado.")
         print("Punto migratorio de ORIGEN más cercano:", origin_id)
@@ -512,85 +514,65 @@ def print_req_4(control):
         print("========================================================== \n")
         return
 
-    # ===== Información general del corredor hídrico =====
+    # --- Información general ---
     print("Punto migratorio de ORIGEN más cercano:", origin_id)
     print("Total de puntos en el corredor hídrico: ", total_puntos)
     print("Total de individuos que utilizan la ruta migratoria:", total_individuos)
     print("Distancia total del corredor migratorio a las fuentes hídricas:", total_dist_hidrica)
     print("Tiempo [ms]: ", tiempo_ms)
+    print("========================================================== \n")
 
-    # ===== Tablas de 5 primeros y 5 últimos nodos =====
+    # ======================================================
+    # Construcción de tablas con Tabulate
+    # ======================================================
 
     headers = [
         "ID nodo",
         "Posición (lat, lon)",
-        "Fecha de creación",
         "# grullas",
         "Tags (3 primeros)",
-        "Tags (3 últimos)",
-        "Prom. dist. agua [km]"
+        "Tags (3 últimos)"
     ]
 
     tabla_primeros = []
     tabla_ultimos = []
 
-    def info_tags(node):
-        tags_list = node["tags"]["elements"]
-        num_grullas = len(tags_list)
-        if num_grullas == 0:
-            primeros3 = []
-            ultimos3 = []
-        elif num_grullas <= 3:
-            primeros3 = tags_list
-            ultimos3 = tags_list
-        else:
-            primeros3 = tags_list[:3]
-            ultimos3 = tags_list[-3:]
-        return num_grullas, primeros3, ultimos3
+    def pos(node):
+        return f"{float(node['lat']):.5f}, {float(node['lon']):.5f}"
 
-    def formatear_posicion(node):
-        return f"{node['lat']:.5f}, {node['lon']:.5f}"
-
-    def formatear_tags(tags):
-        if not tags:
+    def list_to_str(lst):
+        if al.size(lst) == 0:
             return "—"
-        return ", ".join(str(t) for t in tags)
+        return ", ".join(str(x) for x in lst["elements"])
 
-    # ---- Primeros 5 puntos migratorios ----
+    # ================== Primeros 5 ==================
     for node in primeros_5["elements"]:
-        num_grullas, primeros3, ultimos3 = info_tags(node)
         tabla_primeros.append([
             node["id"],
-            formatear_posicion(node),
-            node["creation_timestamp"],
-            num_grullas,
-            formatear_tags(primeros3),
-            formatear_tags(ultimos3),
-            f"{node['prom_distancia_agua']:.4f}"
+            pos(node),
+            node["num_individuals"],
+            list_to_str(node["first_3_tags"]),
+            list_to_str(node["last_3_tags"])
         ])
 
-    # ---- Últimos 5 puntos migratorios ----
+    # ================== Últimos 5 ===================
     for node in ultimos_5["elements"]:
-        num_grullas, primeros3, ultimos3 = info_tags(node)
         tabla_ultimos.append([
             node["id"],
-            formatear_posicion(node),
-            node["creation_timestamp"],
-            num_grullas,
-            formatear_tags(primeros3),
-            formatear_tags(ultimos3),
-            f"{node['prom_distancia_agua']:.4f}"
+            pos(node),
+            node["num_individuals"],
+            list_to_str(node["first_3_tags"]),
+            list_to_str(node["last_3_tags"])
         ])
 
-    print("========================================================== \n")
+    # ================== Impresión ===================
     print("==--- Primeros 5 puntos migratorios del corredor ---==")
     print(tabulate(tabla_primeros, headers=headers, tablefmt="fancy_grid", stralign="center"))
     print("========================================================== \n")
+
     print("==--- Últimos 5 puntos migratorios del corredor ---==")
     print(tabulate(tabla_ultimos, headers=headers, tablefmt="fancy_grid", stralign="center"))
     print("========================================================== \n")
-    print()
-
 
 def print_req_5(control):
     """
