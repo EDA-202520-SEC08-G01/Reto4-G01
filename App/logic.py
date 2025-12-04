@@ -13,6 +13,7 @@ from DataStructures.Graph import dfs as dfs
 from DataStructures.Stack import stack as st
 from DataStructures.Graph import edge as edg
 from DataStructures.Graph import prim as prim
+from DataStructures.Graph import vertex as vt
 
 def haversine(lat1, lon1, lat2, lon2):
     """
@@ -51,93 +52,156 @@ def find_closest_node(catalog, lat, lon):
 
 def get_first_last_nodes(catalog, path_list, graph):
     """
-    Extrae los primeros 5 y últimos 5 nodos de un camino con información detallada.
+    Extrae los primeros 5 y últimos 5 nodos de un camino
+    usando SOLO TADS del curso (array_list y map).
     """
+
     first_5 = al.new_list()
     last_5 = al.new_list()
     total_nodes = al.size(path_list)
-    
-    if total_nodes > 0:
-        # Primeros 5
-        limit_first = min(5, total_nodes)
-        for i in range(limit_first):
-            node_id = al.get_element(path_list, i)
-            node = mp.get(catalog["nodes_by_id"], node_id)
-            
-            # Calcular distancia al siguiente nodo
-            distance_to_next = "Desconocido"
-            if i < total_nodes - 1:
-                next_node_id = al.get_element(path_list, i + 1)
-                edge_weight = dg.get_edge(graph, node_id, next_node_id)
-                if edge_weight is not None:
-                    distance_to_next = round(edge_weight, 3)
-            
-            # Obtener primeros y últimos 3 tags
-            tags = node["tags"]
-            num_tags = al.size(tags)
-            first_3_tags = []
-            last_3_tags = []
-            
-            for j in range(min(3, num_tags)):
-                first_3_tags.append(al.get_element(tags, j))
-            
-            if num_tags > 3:
-                start_last = max(0, num_tags - 3)
-                for j in range(start_last, num_tags):
-                    last_3_tags.append(al.get_element(tags, j))
-            
-            node_info = {
-                "id": node_id,
-                "lat": node["lat"],
-                "lon": node["lon"],
-                "num_individuals": al.size(tags),
-                "first_3_tags": first_3_tags if first_3_tags else ["Desconocido"],
-                "last_3_tags": last_3_tags if last_3_tags else ["Desconocido"],
-                "distance_to_next": distance_to_next
-            }
-            
-            al.add_last(first_5, node_info)
-        
-        # Últimos 5
-        limit_last = min(5, total_nodes)
-        start_last = total_nodes - limit_last
-        for i in range(start_last, total_nodes):
-            node_id = al.get_element(path_list, i)
-            node = mp.get(catalog["nodes_by_id"], node_id)
 
-            distance_to_next = "Desconocido"
-            if i < total_nodes - 1:
-                next_node_id = al.get_element(path_list, i + 1)
-                edge_weight = dg.get_edge(graph, node_id, next_node_id)
-                if edge_weight is not None:
-                    distance_to_next = round(edge_weight, 3)
+    if total_nodes == 0:
+        return first_5, last_5
 
-            tags = node["tags"]
-            num_tags = al.size(tags)
-            first_3_tags = []
-            last_3_tags = []
-            
-            for j in range(min(3, num_tags)):
-                first_3_tags.append(al.get_element(tags, j))
-            
-            if num_tags > 3:
-                start_last = max(0, num_tags - 3)
-                for j in range(start_last, num_tags):
-                    last_3_tags.append(al.get_element(tags, j))
-            
-            node_info = {
-                "id": node_id,
-                "lat": node["lat"],
-                "lon": node["lon"],
-                "num_individuals": al.size(tags),
-                "first_3_tags": first_3_tags if first_3_tags else ["Desconocido"],
-                "last_3_tags": last_3_tags if last_3_tags else ["Desconocido"],
-                "distance_to_next": distance_to_next
-            }
-            
-            al.add_last(last_5, node_info)
-    
+    # ------------------------------
+    # FUNCIÓN AUXILIAR: min(a, b)
+    # ------------------------------
+    def tad_min(a, b):
+        if a < b:
+            return a
+        return b
+
+    # -------------------------------------
+    # PROCESAR PRIMEROS 5 NODOS DEL CAMINO
+    # -------------------------------------
+    limit_first = tad_min(5, total_nodes)
+
+    for i in range(limit_first):
+
+        node_id = al.get_element(path_list, i)
+        node = mp.get(catalog["nodes_by_id"], node_id)
+
+        # Distancia al siguiente nodo
+        distance_to_next = "Desconocido"
+
+        if i < total_nodes - 1:
+            next_node_id = al.get_element(path_list, i + 1)
+
+            v_obj = dg.get_vertex(graph, node_id)
+            edge = vt.get_edge(v_obj, next_node_id)
+
+            if edge is not None:
+                distance_to_next = edge["weight"]
+
+        # TAGS del nodo actual
+        tags = node["tags"]
+        n_tags = al.size(tags)
+
+        # --------------------------------
+        # PRIMERAS 3 TAGS usando TAD
+        # --------------------------------
+        first_3_tags = al.new_list()
+        limit_3_first = tad_min(3, n_tags)
+
+        for j in range(limit_3_first):
+            al.add_last(first_3_tags, al.get_element(tags, j))
+
+        if al.size(first_3_tags) == 0:
+            al.add_last(first_3_tags, "Desconocido")
+
+        # --------------------------------
+        # ÚLTIMAS 3 TAGS usando TAD
+        # --------------------------------
+        last_3_tags = al.new_list()
+        limit_3_last = tad_min(3, n_tags)
+        start_last = n_tags - limit_3_last
+
+        # Evitar negativos por seguridad
+        if start_last < 0:
+            start_last = 0
+
+        for j in range(start_last, n_tags):
+            al.add_last(last_3_tags, al.get_element(tags, j))
+
+        if al.size(last_3_tags) == 0:
+            al.add_last(last_3_tags, "Desconocido")
+
+        # -------------------------------------------
+        # REGISTRO FINAL DEL NODO (permitido usar dict)
+        # -------------------------------------------
+        node_info = {
+            "id": node_id,
+            "lat": node["lat"],
+            "lon": node["lon"],
+            "num_individuals": n_tags,
+            "first_3_tags": first_3_tags,
+            "last_3_tags": last_3_tags,
+            "distance_to_next": distance_to_next
+        }
+
+        al.add_last(first_5, node_info)
+
+    # ------------------------------
+    # PROCESAR ÚLTIMOS 5 NODOS
+    # ------------------------------
+    limit_last = tad_min(5, total_nodes)
+    start_last_section = total_nodes - limit_last
+
+    for i in range(start_last_section, total_nodes):
+
+        node_id = al.get_element(path_list, i)
+        node = mp.get(catalog["nodes_by_id"], node_id)
+
+        distance_to_next = "Desconocido"
+
+        if i < total_nodes - 1:
+            next_node_id = al.get_element(path_list, i + 1)
+
+            v_obj = dg.get_vertex(graph, node_id)
+            edge = vt.get_edge(v_obj, next_node_id)
+
+            if edge is not None:
+                distance_to_next = edge["weight"]
+
+        tags = node["tags"]
+        n_tags = al.size(tags)
+
+        first_3_tags = al.new_list()
+        limit_3_first = tad_min(3, n_tags)
+
+        for j in range(limit_3_first):
+            al.add_last(first_3_tags, al.get_element(tags, j))
+
+        if al.size(first_3_tags) == 0:
+            al.add_last(first_3_tags, "Desconocido")
+
+        last_3_tags = al.new_list()
+        limit_3_last = tad_min(3, n_tags)
+        start_last_tags = n_tags - limit_3_last
+
+        if start_last_tags < 0:
+            start_last_tags = 0
+
+        for j in range(start_last_tags, n_tags):
+            al.add_last(last_3_tags, al.get_element(tags, j))
+
+        if al.size(last_3_tags) == 0:
+            al.add_last(last_3_tags, "Desconocido")
+
+        node_info = {
+            "id": node_id,
+            "lat": node["lat"],
+            "lon": node["lon"],
+            "num_individuals": n_tags,
+            "first_3_tags": first_3_tags,
+            "last_3_tags": last_3_tags,
+            "distance_to_next": distance_to_next
+        }
+
+        al.add_last(last_5, node_info)
+
     return first_5, last_5
+
 
 
 def cmp_events_by_timestamp(e1, e2):
